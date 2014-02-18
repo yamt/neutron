@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
+
+from neutron import manager
 from neutron.extensions import portbindings
 from neutron.tests.unit import _test_extension_portbindings as test_bindings
 from neutron.tests.unit import test_db_plugin as test_plugin
@@ -27,6 +30,7 @@ class OpenvswitchPluginV2TestCase(test_plugin.NeutronDbPluginV2TestCase):
     def setUp(self):
         super(OpenvswitchPluginV2TestCase, self).setUp(self._plugin_name)
         self.port_create_status = 'DOWN'
+        manager.NeutronManager.get_plugin().notifier = mock.Mock()
 
 
 class TestOpenvswitchBasicGet(test_plugin.TestBasicGet,
