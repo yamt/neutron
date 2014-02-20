@@ -26,7 +26,11 @@ from neutron.agent.linux import utils
 from neutron.common import constants
 from neutron.openstack.common.rpc import common as rpc_common
 from neutron.plugins.common import constants as p_const
-from neutron.plugins.linuxbridge.agent import linuxbridge_neutron_agent
+
+with mock.patch.dict('sys.modules', {'pyudev': mock.Mock(**{
+        'Context.return_value.list_devices.return_value': [], })}):
+    from neutron.plugins.linuxbridge.agent import linuxbridge_neutron_agent
+
 from neutron.plugins.linuxbridge.common import constants as lconst
 from neutron.tests import base
 
