@@ -28,6 +28,7 @@ def patch_fake_oflib_of():
     ryu_ofproto_of13.OFPP_ANY = 0xffffffff
     ryu_ofproto_of13.OFPFC_ADD = 0
     ryu_ofproto_of13.OFPFC_DELETE = 3
+    ryu_ofproto_of13.OFPVID_PRESENT = 0x1000
     ryu_app_mod = ryu_mod.app
     ryu_app_ofctl_mod = ryu_app_mod.ofctl
     ryu_ofctl_api = ryu_app_ofctl_mod.api

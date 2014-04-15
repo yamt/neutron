@@ -25,6 +25,7 @@ import testtools
 
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import utils
+from neutron.common import constants as n_const
 from neutron.openstack.common import importutils
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.openvswitch.common import constants
@@ -233,15 +234,23 @@ class TestOFANeutronAgent(OFAAgentTestCase):
             self.agent = self.mod_agent.OFANeutronAgent(self.ryuapp, **kwargs)
             self.agent.tun_br = mock.Mock()
             self.datapath = mock.Mock()
+            self.ofproto = mock.Mock()
+            self.datapath.ofproto = self.ofproto
+            self.ofproto.OFPVID_PRESENT = 0x1000
             self.ofparser = mock.Mock()
-            self.datapath.ofparser = self.ofparser
+            self.datapath.ofproto_parser = self.ofparser
             self.ofparser.OFPMatch = mock.Mock()
             self.ofparser.OFPMatch.return_value = mock.Mock()
             self.ofparser.OFPFlowMod = mock.Mock()
             self.ofparser.OFPFlowMod.return_value = mock.Mock()
             self.agent.int_br.ofparser = self.ofparser
+            self.agent.tun_br.datapath = self.datapath
 
         self.agent.sg_agent = mock.Mock()
+
+    def _create_tunnel_port_name(self, tunnel_ip, tunnel_type):
+        tunnel_ip_hex = '%08x' % netaddr.IPAddress(tunnel_ip, version=4)
+        return '%s-%s' % (tunnel_type, tunnel_ip_hex)
 
     def _mock_port_bound(self, ofport=None, new_local_vlan=None,
                          old_local_vlan=None):
@@ -491,14 +500,17 @@ class TestOFANeutronAgent(OFAAgentTestCase):
             )
 
     def test_network_delete(self):
-        with mock.patch.object(self.agent,
-                               "reclaim_local_vlan") as recl_fn:
+        with contextlib.nested(
+            mock.patch.object(self.agent, "reclaim_local_vlan"),
+            mock.patch.object(self.agent.tun_br, "cleanup_tunnel_port")
+        ) as (recl_fn, clean_tun_fn):
             self.agent.network_delete("unused_context",
                                       network_id="123")
             self.assertFalse(recl_fn.called)
             self.agent.local_vlan_map["123"] = "LVM object"
             self.agent.network_delete("unused_context",
                                       network_id="123")
+            self.assertFalse(clean_tun_fn.called)
             recl_fn.assert_called_with("123")
 
     def test_port_update(self):
@@ -576,6 +588,151 @@ class TestOFANeutronAgent(OFAAgentTestCase):
             self.agent.port_unbound("vif3", "netuid12345")
             self.assertEqual(reclvl_fn.call_count, 2)
 
+    def _prepare_l2_pop_ofports(self):
+        self.net1 = 'net1'
+        self.net2 = 'net2'
+        self.VLAN1 = '11'
+        self.VLAN2 = '12'
+        self.SEG1 = '21'
+        self.SEG2 = '22'
+        self.ip1 = '1.1.1.1'
+        self.ip2 = '2.2.2.2'
+        self.tunnel_type = 'gre'
+        self.tun_name1 = self._create_tunnel_port_name(self.ip1,
+                                                       self.tunnel_type)
+        self.tun_name2 = self._create_tunnel_port_name(self.ip2,
+                                                       self.tunnel_type)
+        lvm1 = mock.Mock()
+        lvm1.network_type = self.tunnel_type
+        lvm1.vlan = self.VLAN1
+        lvm1.segmentation_id = self.SEG1
+        lvm1.tun_ofports = set(['1'])
+        lvm2 = mock.Mock()
+        lvm2.network_type = self.tunnel_type
+        lvm2.vlan = self.VLAN2
+        lvm2.segmentation_id = self.SEG2
+        lvm2.tun_ofports = set(['1', '2'])
+        self.agent.local_vlan_map = {self.net1: lvm1, self.net2: lvm2}
+        self.agent.tun_br_ofports = {self.tunnel_type:
+                                     {self.ip1: '1', self.ip2: '2'}}
+
+    def test_fdb_ignore_network(self):
+        self._prepare_l2_pop_ofports()
+        fdb_entry = {'net3': {}}
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'ryu_send_msg'),
+            mock.patch.object(self.agent, 'setup_tunnel_port'),
+            mock.patch.object(self.agent, 'cleanup_tunnel_port')
+        ) as (ryu_send_msg_fn, add_tun_fn, clean_tun_fn):
+            self.agent.fdb_add(None, fdb_entry)
+            self.assertFalse(add_tun_fn.called)
+            self.agent.fdb_remove(None, fdb_entry)
+            self.assertFalse(clean_tun_fn.called)
+            self.assertFalse(ryu_send_msg_fn.called)
+
+    def test_fdb_ignore_self(self):
+        self._prepare_l2_pop_ofports()
+        self.agent.local_ip = 'agent_ip'
+        fdb_entry = {self.net2:
+                     {'network_type': self.tunnel_type,
+                      'segment_id': 'tun2',
+                      'ports':
+                      {'agent_ip':
+                       [['mac', 'ip'],
+                        n_const.FLOODING_ENTRY]}}}
+        with mock.patch.object(self.agent.tun_br,
+                               "defer_apply_on") as defer_fn:
+            self.agent.fdb_add(None, fdb_entry)
+            self.assertFalse(defer_fn.called)
+
+            self.agent.fdb_remove(None, fdb_entry)
+            self.assertFalse(defer_fn.called)
+
+    def test_fdb_add_flows(self):
+        self._prepare_l2_pop_ofports()
+        fdb_entry = {self.net1:
+                     {'network_type': self.tunnel_type,
+                      'segment_id': 'tun1',
+                      'ports':
+                      {self.ip2:
+                       [['mac', 'ip'],
+                        n_const.FLOODING_ENTRY]}}}
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'ryu_send_msg'),
+            mock.patch.object(self.agent.tun_br, 'setup_tunnel_port'),
+        ) as (ryu_send_msg_fn, add_tun_fn):
+            add_tun_fn.return_value = '2'
+            self.agent.fdb_add(None, fdb_entry)
+            self.assertEqual(ryu_send_msg_fn.call_count, 2)
+
+    def test_fdb_del_flows(self):
+        self._prepare_l2_pop_ofports()
+        fdb_entry = {self.net2:
+                     {'network_type': self.tunnel_type,
+                      'segment_id': 'tun2',
+                      'ports':
+                      {self.ip2:
+                       [['mac', 'ip'],
+                        n_const.FLOODING_ENTRY]}}}
+        with mock.patch.object(self.agent,
+                               'ryu_send_msg') as ryu_send_msg_fn:
+            self.agent.fdb_remove(None, fdb_entry)
+            self.assertEqual(ryu_send_msg_fn.call_count, 2)
+
+    def test_fdb_add_port(self):
+        self._prepare_l2_pop_ofports()
+        tunnel_ip = '10.10.10.10'
+        tun_name = self._create_tunnel_port_name(tunnel_ip,
+                                                 self.tunnel_type)
+        fdb_entry = {self.net1:
+                     {'network_type': self.tunnel_type,
+                      'segment_id': 'tun1',
+                      'ports': {self.ip1: [['mac', 'ip']]}}}
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'ryu_send_msg'),
+            mock.patch.object(self.agent, 'setup_tunnel_port')
+        ) as (ryu_send_msg_fn, add_tun_fn):
+            self.agent.fdb_add(None, fdb_entry)
+            self.assertFalse(add_tun_fn.called)
+            fdb_entry[self.net1]['ports'][tunnel_ip] = [['mac', 'ip']]
+            self.agent.fdb_add(None, fdb_entry)
+            add_tun_fn.assert_called_with(
+                tun_name, tunnel_ip, self.tunnel_type)
+
+    def test_fdb_del_port(self):
+        self._prepare_l2_pop_ofports()
+        fdb_entry = {self.net2:
+                     {'network_type': self.tunnel_type,
+                      'segment_id': 'tun2',
+                      'ports': {self.ip2: [n_const.FLOODING_ENTRY]}}}
+        with contextlib.nested(
+            mock.patch.object(self.agent, 'ryu_send_msg'),
+            mock.patch.object(self.agent.tun_br, 'delete_port')
+        ) as (ryu_send_msg_fn, del_port_fn):
+            self.agent.fdb_remove(None, fdb_entry)
+            del_port_fn.assert_called_once_with(self.tun_name2)
+
+    def test_recl_lv_port_to_preserve(self):
+        self._prepare_l2_pop_ofports()
+        self.agent.l2_pop = True
+        self.agent.enable_tunneling = True
+        with mock.patch.object(
+            self.agent.tun_br, 'cleanup_tunnel_port'
+        ) as clean_tun_fn:
+            self.agent.reclaim_local_vlan(self.net1)
+            self.assertFalse(clean_tun_fn.called)
+
+    def test_recl_lv_port_to_remove(self):
+        self._prepare_l2_pop_ofports()
+        self.agent.l2_pop = True
+        self.agent.enable_tunneling = True
+        with contextlib.nested(
+            mock.patch.object(self.agent.tun_br, 'delete_port'),
+            mock.patch.object(self.agent, 'ryu_send_msg')
+        ) as (del_port_fn, ryu_send_msg_fn):
+            self.agent.reclaim_local_vlan(self.net2)
+            del_port_fn.assert_called_once_with(self.tun_name2)
+
     def test_daemon_loop_uses_polling_manager(self):
         with mock.patch(
             'neutron.agent.linux.polling.get_polling_manager'
@@ -627,10 +784,6 @@ class TestOFANeutronAgent(OFAAgentTestCase):
                 _("Failed to set-up %(type)s tunnel port to %(ip)s"),
                 {'type': p_const.TYPE_GRE, 'ip': 'remote_ip'})
             self.assertEqual(ofport, 0)
-
-    def _create_tunnel_port_name(self, tunnel_ip, tunnel_type):
-        tunnel_ip_hex = '%08x' % netaddr.IPAddress(tunnel_ip, version=4)
-        return '%s-%s' % (tunnel_type, tunnel_ip_hex)
 
     def test_tunnel_sync_with_valid_ip_address_and_gre_type(self):
         tunnel_ip = '100.101.102.103'
