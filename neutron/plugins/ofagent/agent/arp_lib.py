@@ -20,10 +20,8 @@ from ryu.lib.packet import arp
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import packet
 from ryu.lib.packet import vlan
-from ryu.ofproto import ether
 
 from neutron.openstack.common import log as logging
-from neutron.plugins.openvswitch.common import constants
 
 
 LOG = logging.getLogger(__name__)
@@ -40,6 +38,10 @@ class ArpLib(object):
             }
         """
         self._arp_tbl = {}
+        self.br = None
+
+    def set_bridge(self, br):
+        self.br = br
 
     def _send_arp_reply(self, datapath, port, pkt):
         LOG.debug("packet-out %s", pkt)
@@ -53,21 +55,6 @@ class ArpLib(object):
                                 in_port=ofp.OFPP_CONTROLLER,
                                 actions=actions,
                                 data=data)
-        ryu_api.send_msg(self.ryuapp, out)
-
-    def _add_flow_to_avoid_unknown_packet(self, datapath, match):
-        LOG.debug("add flow to avoid an unknown packet from packet-in")
-        ofp = datapath.ofproto
-        ofpp = datapath.ofproto_parser
-        instructions = [ofpp.OFPInstructionGotoTable(
-            table_id=constants.FLOOD_TO_TUN)]
-        out = ofpp.OFPFlowMod(datapath,
-                              table_id=constants.PATCH_LV_TO_TUN,
-                              command=ofp.OFPFC_ADD,
-                              idle_timeout=5,
-                              priority=20,
-                              match=match,
-                              instructions=instructions)
         ryu_api.send_msg(self.ryuapp, out)
 
     def _send_unknown_packet(self, msg, in_port, out_port):
@@ -104,10 +91,11 @@ class ArpLib(object):
         pkt.add_protocol(ethernet.ethernet(ethertype=pkt_ethernet.ethertype,
                                            dst=pkt_ethernet.src,
                                            src=hw_addr))
-        pkt.add_protocol(vlan.vlan(cfi=pkt_vlan.cfi,
-                                   ethertype=pkt_vlan.ethertype,
-                                   pcp=pkt_vlan.pcp,
-                                   vid=pkt_vlan.vid))
+        if pkt_vlan:
+            pkt.add_protocol(vlan.vlan(cfi=pkt_vlan.cfi,
+                                       ethertype=pkt_vlan.ethertype,
+                                       pcp=pkt_vlan.pcp,
+                                       vid=pkt_vlan.vid))
         pkt.add_protocol(arp.arp(opcode=arp.ARP_REPLY,
                                  src_mac=hw_addr,
                                  src_ip=ip_addr,
@@ -141,31 +129,29 @@ class ArpLib(object):
         msg = ev.msg
         LOG.debug("packet-in msg %s", msg)
         datapath = msg.datapath
+        if self.br is None:
+            return
+        if self.br.datapath.id != datapath.id:
+            return
         ofp = datapath.ofproto
-        ofpp = datapath.ofproto_parser
         port = msg.match['in_port']
+        network = msg.match.get('metadata')
         pkt = packet.Packet(msg.data)
         LOG.info(_("packet-in dpid %(dpid)s in_port %(port)s pkt %(pkt)s"),
                  {'dpid': dpid_lib.dpid_to_str(datapath.id),
                  'port': port, 'pkt': pkt})
-        pkt_vlan = None
-        pkt_arp = None
+
+        if network is None:
+            LOG.info(_("drop non tenant packet"))
+            return
         pkt_ethernet = pkt.get_protocol(ethernet.ethernet)
         if not pkt_ethernet:
-            LOG.info(_("non-ethernet packet"))
-        else:
-            pkt_vlan = pkt.get_protocol(vlan.vlan)
-            if not pkt_vlan:
-                LOG.info(_("non-vlan packet"))
-        if pkt_vlan:
-            network = pkt_vlan.vid
-            pkt_arp = pkt.get_protocol(arp.arp)
-            if not pkt_arp:
-                LOG.info(_("drop non-arp packet"))
-                return
-        else:
-            # drop an unknown packet.
-            LOG.info(_("drop unknown packet"))
+            LOG.info(_("drop non-ethernet packet"))
+            return
+        pkt_vlan = pkt.get_protocol(vlan.vlan)
+        pkt_arp = pkt.get_protocol(arp.arp)
+        if not pkt_arp:
+            LOG.info(_("drop non-arp packet"))
             return
 
         arptbl = self._arp_tbl.get(network)
@@ -175,11 +161,8 @@ class ArpLib(object):
                 return
         else:
             LOG.info(_("unknown network %s"), network)
+
         # add a flow to skip a packet-in to a controller.
-        match = ofpp.OFPMatch(eth_type=ether.ETH_TYPE_ARP,
-                              vlan_vid=network | ofp.OFPVID_PRESENT,
-                              arp_op=arp.ARP_REQUEST,
-                              arp_tpa=pkt_arp.dst_ip)
-        self._add_flow_to_avoid_unknown_packet(datapath, match)
+        self.br.arp_passthrough(tpa=pkt_arp.dst_ip)
         # send an unknown arp packet to the table.
         self._send_unknown_packet(msg, port, ofp.OFPP_TABLE)
