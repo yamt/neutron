@@ -40,6 +40,9 @@ class FakeNeutronAgent(l2population_rpc.L2populationRpcCallBackTunnelMixin):
     def cleanup_tunnel_port(self, tun_ofport, tunnel_type):
         pass
 
+    def ope_arp_respond_info(self, action, lvid, mac_address, ip_address):
+        pass
+
 
 class TestL2populationRpcCallBackTunnelMixinBase(base.BaseTestCase):
 
