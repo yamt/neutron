@@ -21,6 +21,7 @@ import contextlib
 import mock
 import netaddr
 from oslo.config import cfg
+import sys
 import testtools
 
 from neutron.agent.linux import ip_lib
@@ -884,6 +885,40 @@ class TestOFANeutronAgent(OFAAgentTestCase):
         expected_calls = [mock.call(tun_name, tunnel_ip,
                                     self.agent.tunnel_types[0])]
         self.agent.setup_tunnel_port.assert_has_calls(expected_calls)
+
+    def test__provision_local_vlan_inbound_for_tunnel(self):
+        ofpp = self.agent.tun_br.ofparser
+        with contextlib.nested(
+            mock.patch.object(ofpp, 'OFPMatch', return_value=9),
+            mock.patch.object(ofpp, 'OFPActionPushVlan', return_value=10),
+            mock.patch.object(ofpp, 'OFPActionSetField', return_value=11),
+            mock.patch.object(ofpp, 'OFPInstructionActions', return_value=12),
+            mock.patch.object(ofpp, 'OFPInstructionGotoTable',
+                              return_value=13),
+            mock.patch.object(ofpp, 'OFPFlowMod', return_value=14),
+            mock.patch.object(self.agent, 'ryu_send_msg'),
+        ) as (
+            match,
+            pushvlan,
+            setfield,
+            actions,
+            goto,
+            flowmod,
+            sendmsg,
+        ):
+            self.agent._provision_local_vlan_inbound_for_tunnel(1, 'gre', 3)
+        match.assert_has_calls([mock.call(tunnel_id=3)])
+        pushvlan.assert_has_calls([mock.call()])
+        setfield.assert_has_calls([mock.call(vlan_vid=1 | 0x1000)])
+        actions.assert_has_calls([mock.call(9999, [10, 11])])
+        goto.assert_has_calls([mock.call(table_id=constants.LEARN_FROM_TUN)])
+        flowmod.assert_has_calls([mock.call(self.agent.tun_br.datapath,
+                                            table_id=
+                                            constants.TUN_TABLE['gre'],
+                                            priority=1,
+                                            match=9,
+                                            instructions=[12, 13])])
+        sendmsg.assert_has_calls([mock.call(14)])
 
 
 class AncillaryBridgesTest(OFAAgentTestCase):
