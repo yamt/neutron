@@ -44,8 +44,11 @@ class L2populationDbMixin(base_db.CommonDbMixin):
         return timeutils.delta_seconds(agent.started_at,
                                        agent.heartbeat_timestamp)
 
-    def get_agent_tunnel_types(self, agent):
+    def get_agent_l2pop_network_types(self, agent):
         configuration = jsonutils.loads(agent.configurations)
+        network_types = configuration.get('l2pop_network_types')
+        if network_types is not None:
+            return network_types
         return configuration.get('tunnel_types')
 
     def get_agent_by_host(self, session, agent_host):
