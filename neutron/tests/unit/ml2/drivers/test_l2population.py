@@ -79,6 +79,18 @@ L2_AGENT_4 = {
     'start_flag': True
 }
 
+L2_AGENT_5 = {
+    'binary': 'neutron-openvswitch-agent',
+    'host': HOST + '_5',
+    'topic': constants.L2_AGENT_TOPIC,
+    'configurations': {'tunneling_ip': '20.0.0.5',
+                       'tunnel_types': [],
+                       'l2pop_network_types': ['vlan']},
+    'agent_type': constants.AGENT_TYPE_OVS,
+    'tunnel_type': [],
+    'start_flag': True
+}
+
 PLUGIN_NAME = 'neutron.plugins.ml2.plugin.Ml2Plugin'
 NOTIFIER = 'neutron.plugins.ml2.rpc.AgentNotifierApi'
 DEVICE_OWNER_COMPUTE = 'compute:None'
@@ -151,6 +163,9 @@ class TestL2PopulationRpcTestCase(test_plugin.NeutronDbPluginV2TestCase):
         callback.report_state(self.adminContext,
                               agent_state={'agent_state': L2_AGENT_4},
                               time=timeutils.strtime())
+        callback.report_state(self.adminContext,
+                              agent_state={'agent_state': L2_AGENT_5},
+                              time=timeutils.strtime())
 
     def test_fdb_add_called(self):
         self._register_ml2_agents()
@@ -204,6 +219,28 @@ class TestL2PopulationRpcTestCase(test_plugin.NeutronDbPluginV2TestCase):
                     p1 = port1['port']
 
                     device = 'tap' + p1['id']
+
+                    self.mock_fanout.reset_mock()
+                    self.callbacks.update_device_up(self.adminContext,
+                                                    agent_id=HOST,
+                                                    device=device)
+
+                    self.assertFalse(self.mock_fanout.called)
+
+    def test_fdb_add_called_for_l2pop_network_types(self):
+        self._register_ml2_agents()
+
+        with self.subnet(network=self._network) as subnet:
+            host_arg = {portbindings.HOST_ID: HOST + '_5'}
+            with self.port(subnet=subnet,
+                           arg_list=(portbindings.HOST_ID,),
+                           **host_arg) as port1:
+                with self.port(subnet=subnet,
+                               arg_list=(portbindings.HOST_ID,),
+                               **host_arg):
+                    p1 = port1['port']
+
+                    device = ('tap' + p1['id'])[:14]
 
                     self.mock_fanout.reset_mock()
                     self.callbacks.update_device_up(self.adminContext,
