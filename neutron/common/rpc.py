@@ -54,7 +54,8 @@ def init(conf):
     TRANSPORT = messaging.get_transport(conf,
                                         allowed_remote_exmods=exmods,
                                         aliases=TRANSPORT_ALIASES)
-    NOTIFIER = messaging.Notifier(TRANSPORT)
+    NOTIFIER = messaging.Notifier(TRANSPORT,
+                                  serializer=PluginRpcSerializer(None))
 
 
 def cleanup():
