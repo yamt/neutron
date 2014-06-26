@@ -241,6 +241,8 @@ class OFANeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                                                 n_const.MAX_VLAN_TAG))
         self.tunnel_types = tunnel_types or []
         self.l2_pop = l2_population
+        l2pop_network_types = list(set(self.tunnel_types +
+                                       [p_const.TYPE_VLAN]))
         self.agent_state = {
             'binary': 'neutron-ofa-agent',
             'host': cfg.CONF.host,
@@ -248,7 +250,8 @@ class OFANeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             'configurations': {'bridge_mappings': bridge_mappings,
                                'tunnel_types': self.tunnel_types,
                                'tunneling_ip': local_ip,
-                               'l2_population': self.l2_pop},
+                               'l2_population': self.l2_pop,
+                               'l2pop_network_types': l2pop_network_types},
             'agent_type': n_const.AGENT_TYPE_OFA,
             'start_flag': True}
 
