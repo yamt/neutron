@@ -221,6 +221,8 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         # TODO(yamamoto): Remove this VLAN leftover
         self.available_local_vlans = set(xrange(1, 4095))
         self.tunnel_types = tunnel_types or []
+        l2pop_network_types = list(set(self.tunnel_types +
+                                       [p_const.TYPE_VLAN]))
         self.agent_state = {
             'binary': 'neutron-ofa-agent',
             'host': cfg.CONF.host,
@@ -228,7 +230,8 @@ class OFANeutronAgent(n_rpc.RpcCallback,
             'configurations': {'bridge_mappings': bridge_mappings,
                                'tunnel_types': self.tunnel_types,
                                'tunneling_ip': local_ip,
-                               'l2_population': True},
+                               'l2_population': True,
+                               'l2pop_network_types': l2pop_network_types},
             'agent_type': n_const.AGENT_TYPE_OFA,
             'start_flag': True}
 
