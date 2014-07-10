@@ -47,6 +47,14 @@ from neutron.plugins.openvswitch.common import constants
 
 LOG = logging.getLogger(__name__)
 
+PORT_NAME_LEN = 14
+PORT_NAME_PREFIXES = [
+    "tap",  # common cases, including ovs_use_veth=True
+    "qvo",  # nova hybrid interface driver
+    "qr-",  # l3-agent INTERNAL_DEV_PREFIX  (ovs_use_veth=False)
+    "qg-",  # l3-agent EXTERNAL_DEV_PREFIX  (ovs_use_veth=False)
+]
+
 # A placeholder for dead vlans.
 DEAD_VLAN_TAG = str(n_const.MAX_VLAN_TAG + 1)
 
@@ -319,7 +327,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         use "tap" prefix throughout the agent and plugin for simplicity.
         Some care should be taken when talking to the switch.
         """
-        return "tap" + interface_id[0:11]
+        return ("tap" + interface_id)[0:PORT_NAME_LEN]
 
     @staticmethod
     def _normalize_port_name(name):
@@ -327,16 +335,20 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
         See comments in _get_ofport_name.
         """
-        PORT_NAME_PREFIXES = [
-            "tap",  # common cases, including ovs_use_veth=True
-            "qvo",  # nova hybrid interface driver
-            "qr-",  # l3-agent INTERNAL_DEV_PREFIX  (ovs_use_veth=False)
-            "qg-",  # l3-agent EXTERNAL_DEV_PREFIX  (ovs_use_veth=False)
-        ]
         for pref in PORT_NAME_PREFIXES:
             if name.startswith(pref):
                 return "tap" + name[len(pref):]
         return name
+
+    @staticmethod
+    def _is_neutron_port(name):
+        """Return True if the name looks like a neutron port."""
+        if len(name) != PORT_NAME_LEN:
+            return False
+        for pref in PORT_NAME_PREFIXES:
+            if name.startswith(pref):
+                return True
+        return False
 
     def _get_ports(self, br):
         """Generate ports.Port instances for the given bridge."""
@@ -353,7 +365,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
     def _get_ofport_names(self, br):
         """Return a set of OpenFlow port names for the given bridge."""
         return set(self._normalize_port_name(p.port_name) for p in
-                   self._get_ports(br))
+                   self._get_ports(br) if self._is_neutron_port(p.port_name))
 
     def get_net_uuid(self, vif_id):
         for network_id, vlan_mapping in self.local_vlan_map.iteritems():
@@ -1113,7 +1125,8 @@ class OFANeutronAgent(n_rpc.RpcCallback,
     def treat_devices_added_or_updated(self, devices):
         resync = False
         all_ports = dict((self._normalize_port_name(p.port_name), p) for p in
-                         self._get_ports(self.int_br))
+                         self._get_ports(self.int_br)
+                         if self._is_neutron_port(p.port_name))
         for device in devices:
             LOG.debug(_("Processing port %s"), device)
             if device not in all_ports:
