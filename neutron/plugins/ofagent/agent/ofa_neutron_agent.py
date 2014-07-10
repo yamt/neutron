@@ -304,7 +304,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
     @staticmethod
     def _get_ofport_name(interface_id):
-        """Convert from neutron device id (uuid) to OpenFlow port name.
+        """Convert from neutron device id (uuid) to "normalized" port name.
 
         This needs to be synced with ML2 plugin's _device_to_port_id().
 
@@ -313,8 +313,30 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         NOTE(yamamoto): While it's true for Open vSwitch, it isn't
         necessarily true everywhere.  For example, LINC uses something
         like "LogicalSwitch0-Port2".
+
+        NOTE(yamamoto): The actual prefix might be different.  For example,
+        with the hybrid interface driver, it's "qvo".  However, we always
+        use "tap" prefix throughout the agent and plugin for simplicity.
+        Some care should be taken when talking to the switch.
         """
         return "tap" + interface_id[0:11]
+
+    @staticmethod
+    def _normalize_port_name(name):
+        """Normalize port name.
+
+        See comments in _get_ofport_name.
+        """
+        PORT_NAME_PREFIXES = [
+            "tap",  # common cases, including ovs_use_veth=True
+            "qvo",  # nova hybrid interface driver
+            "qr-",  # l3-agent INTERNAL_DEV_PREFIX  (ovs_use_veth=False)
+            "qg-",  # l3-agent EXTERNAL_DEV_PREFIX  (ovs_use_veth=False)
+        ]
+        for pref in PORT_NAME_PREFIXES:
+            if name.startswith(pref):
+                return "tap" + name[len(pref):]
+        return name
 
     def _get_ports(self, br):
         """Generate ports.Port instances for the given bridge."""
@@ -330,7 +352,8 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
     def _get_ofport_names(self, br):
         """Return a set of OpenFlow port names for the given bridge."""
-        return set(p.port_name for p in self._get_ports(br))
+        return set(self._normalize_port_name(p.port_name) for p in
+                   self._get_ports(br))
 
     def get_net_uuid(self, vif_id):
         for network_id, vlan_mapping in self.local_vlan_map.iteritems():
@@ -1089,7 +1112,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
     def treat_devices_added_or_updated(self, devices):
         resync = False
-        all_ports = dict((p.port_name, p) for p in
+        all_ports = dict((self._normalize_port_name(p.port_name), p) for p in
                          self._get_ports(self.int_br))
         for device in devices:
             LOG.debug(_("Processing port %s"), device)
