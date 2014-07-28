@@ -473,7 +473,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
                 for ofport in lvm.tun_ofports:
                     self.cleanup_tunnel_port(ofport, lvm.network_type)
         elif lvm.network_type in [p_const.TYPE_FLAT, p_const.TYPE_VLAN]:
-            phys_port = self.int_ofports[physical_network]
+            phys_port = self.int_ofports[lvm.physical_network]
             self.int_br.reclaim_tenant_physnet(lvm.network_type, lvm.lvid,
                                                lvm.segmentation_id, phys_port)
         elif lvm.network_type == p_const.TYPE_LOCAL:
