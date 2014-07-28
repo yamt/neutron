@@ -507,7 +507,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         self.int_br.check_in_port_add_local_port(lvm.vlan, port.ofport)
 
         # if any of vif mac is unknown, flood unicasts as well
-        flood_unicast = any(map(lambda x: x.mac is None,
+        flood_unicast = any(map(lambda x: x.vif_mac is None,
                                 lvm.vif_ports.values()))
         ofports = (vp.ofport for vp in lvm.vif_ports.values())
         self.int_br.local_flood_update(lvm.vlan, ofports, flood_unicast)
