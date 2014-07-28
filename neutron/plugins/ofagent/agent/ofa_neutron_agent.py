@@ -500,7 +500,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
                                       physical_network, segmentation_id)
         lvm = self.local_vlan_map[net_uuid]
 
-        lvm.vif_ports[port.port_name] = port
+        lvm.vif_ports[port.normalized_port_name()] = port
         self.int_br.check_in_port_add_local_port(lvm.vlan, port.ofport)
 
         # if any of vif mac is unknown, flood unicasts as well
