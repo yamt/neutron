@@ -20,6 +20,7 @@
 import abc
 
 from oslo.config import cfg
+from oslo.messaging import rpc
 import six
 
 from neutron.common import constants as n_const
@@ -195,6 +196,7 @@ class L2populationRpcCallBackTunnelMixin(L2populationRpcCallBackMixin):
                     self.cleanup_tunnel_port(br, ofport, lvm.network_type)
 
     @log.log
+    @rpc.expected_exceptions(NotImplementedError)
     def fdb_update(self, context, fdb_entries):
         '''Call methods named '_fdb_<action>'.
 
