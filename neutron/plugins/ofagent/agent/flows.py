@@ -269,7 +269,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def reclaim_tenant_physnet(self, network_type, tenant,
                                segmentation_id, phys_port):
         (_dp, ofp, _ofpp) = self._get_dp()
-        vlan_vid = lvm.segmentation_id | ofp.OFPVID_PRESENT
+        vlan_vid = segmentation_id | ofp.OFPVID_PRESENT
         if network_type == p_const.TYPE_VLAN:
             self.delete_flows(table_id=tables.CHECK_IN_PORT,
                               in_port=phys_port, vlan_vid=vlan_vid)
