@@ -52,9 +52,6 @@ from neutron.plugins.openvswitch.common import constants
 
 LOG = logging.getLogger(__name__)
 
-# A placeholder for dead vlans.
-DEAD_VLAN_TAG = str(n_const.MAX_VLAN_TAG + 1)
-
 
 # A class to represent a VIF (i.e., a port that has 'iface-id' and 'vif-mac'
 # attributes set).
