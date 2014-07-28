@@ -326,16 +326,6 @@ class OFANeutronAgent(n_rpc.RpcCallback,
             if vif_id in vlan_mapping.vif_ports:
                 return network_id
 
-    def network_delete(self, context, **kwargs):
-        network_id = kwargs.get('network_id')
-        LOG.debug(_("network_delete received network %s"), network_id)
-        # The network may not be defined on this agent
-        lvm = self.local_vlan_map.get(network_id)
-        if lvm:
-            self.reclaim_local_vlan(network_id)
-        else:
-            LOG.debug(_("Network %s not used on agent."), network_id)
-
     def port_update(self, context, **kwargs):
         port = kwargs.get('port')
         # Put the port identifier in the updated_ports set.
