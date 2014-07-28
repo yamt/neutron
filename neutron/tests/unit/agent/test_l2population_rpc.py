@@ -16,6 +16,7 @@
 import contextlib
 
 import mock
+from oslo.messaging.rpc import dispatcher as rpc_dispatcher
 
 from neutron.common import constants as n_const
 from neutron.tests.unit.agent import l2population_rpc_base
@@ -186,7 +187,7 @@ class TestL2populationRpcCallBackTunnelMixin(
             'context', self.upd_fdb_entry1_val)
 
     def test_fdb_update_non_existence_method(self):
-        self.assertRaises(NotImplementedError,
+        self.assertRaises(rpc_dispatcher.ExpectedException,
                           self.fakeagent.fdb_update,
                           'context', self.upd_fdb_entry1)
 
