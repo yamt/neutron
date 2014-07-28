@@ -530,24 +530,22 @@ class OFANeutronAgent(n_rpc.RpcCallback,
             return
         self.int_br.local_out_add_port(lvm.vlan, port.ofport, port.vif_mac)
 
-    def port_unbound(self, vif_id, net_uuid=None):
+    def port_unbound(self, vif_id):
         """Unbind port.
 
         Removes corresponding local vlan mapping object if this is its last
         VIF.
 
         :param vif_id: the id of the vif
-        :param net_uuid: the net_uuid this port is associated with.
         """
-        net_uuid = net_uuid or self.get_net_uuid(vif_id)
-
+        net_uuid = self.get_net_uuid(vif_id)
         if not self.local_vlan_map.get(net_uuid):
             LOG.info(_('port_unbound() net_uuid %s not in local_vlan_map'),
                      net_uuid)
             return
 
         lvm = self.local_vlan_map[net_uuid]
-        port = lvm.vif_ports.pop(vif_id, None)
+        port = lvm.vif_ports.pop(vif_id)
 
         self.int_br.check_in_port_delete_port(port.ofport)
         if not lvm.vif_ports:
