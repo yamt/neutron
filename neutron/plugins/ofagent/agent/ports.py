@@ -77,6 +77,10 @@ def _normalize_port_name(name):
 
 
 class Port(OFPort):
+    def __init__(self, *args, **kwargs):
+        super(Port, self).__init__(*args, **kwargs)
+        self.vif_mac = None
+
     def is_neutron_port(self):
         """Return True if the port looks like a neutron port."""
         return _is_neutron_port(self.port_name)

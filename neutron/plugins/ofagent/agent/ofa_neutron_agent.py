@@ -507,7 +507,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         self.int_br.check_in_port_add_local_port(lvm.vlan, port.ofport)
 
         # if any of vif mac is unknown, flood unicasts as well
-        flood_unicast = any(map(lambda x: x.vif_mac is None,
+        flood_unicast = any(map(lambda x: x.mac is None,
                                 lvm.vif_ports.values()))
         ofports = (vp.ofport for vp in lvm.vif_ports.values())
         self.int_br.local_flood_update(lvm.vlan, ofports, flood_unicast)
@@ -793,9 +793,6 @@ class OFANeutronAgent(n_rpc.RpcCallback,
                          self._get_ports(self.int_br) if p.is_neutron_port())
         for device in devices:
             LOG.debug(_("Processing port %s"), device)
-            # TODO(yamamoto): Improve get_device_details so that we can
-            # obtain vif_mac without relying on ovsdb.
-            # cf. https://review.openstack.org/#/c/96181/
             if device not in all_ports:
                 # The port has disappeared and should not be processed
                 # There is no need to put the port DOWN in the plugin as
@@ -817,6 +814,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
             if 'port_id' in details:
                 LOG.info(_("Port %(device)s updated. Details: %(details)s"),
                          {'device': device, 'details': details})
+                port.vif_mac = details.get('mac_address')
                 self.treat_vif_port(port, details['port_id'],
                                     details['network_id'],
                                     details['network_type'],
