@@ -84,7 +84,7 @@ OpenFlow1.3 flow table for OFAgent
 * ARP_PASSTHROUGH
    for each unknown tpa:
       // arp_passthrough
-      arp,arp_op=request,tpa=iii, idle_timeout=5, goto(TUNNEL_OUT)
+      arp,arp_op=request,metadata=xxx,tpa=iii, idle_timeout=5, goto(TUNNEL_OUT)
    default goto(next_table)
 
 * ARP_RESPONDER
@@ -389,9 +389,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         self.delete_flows(table_id=tables.LOCAL_OUT,
                           metadata=tenant, eth_dst=mac)
 
-    def arp_passthrough(self, tpa):
+    def arp_passthrough(self, tenant, tpa):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(eth_type=ether.ETH_TYPE_ARP,
+        match = ofpp.OFPMatch(metadata=tenant,
+                              eth_type=ether.ETH_TYPE_ARP,
                               arp_op=arp.ARP_REQUEST,
                               arp_tpa=tpa)
         instructions = [

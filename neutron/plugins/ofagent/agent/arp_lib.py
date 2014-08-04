@@ -164,6 +164,6 @@ class ArpLib(object):
             LOG.info(_("unknown network %s"), network)
 
         # add a flow to skip a packet-in to a controller.
-        self.br.arp_passthrough(tpa=pkt_arp.dst_ip)
+        self.br.arp_passthrough(tenant=network, tpa=pkt_arp.dst_ip)
         # send an unknown arp packet to the table.
         self._send_unknown_packet(msg, port, ofp.OFPP_TABLE)
