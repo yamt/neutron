@@ -311,12 +311,12 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               in_port=phys_port)
         self.delete_flows(table_id=tables.PHYS_FLOOD, metadata=tenant)
 
-    def check_in_port_add_tuunel_port(self, tunnel_type, port):
+    def check_in_port_add_tunnel_port(self, network_type, port):
         (dp, _ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(in_port=port)
         instructions = [
             ofpp.OFPInstructionGotoTable(
-                table_id=tables.TUNNEL_IN[tunnel_type])
+                table_id=tables.TUNNEL_IN[network_type])
         ]
         msg = ofpp.OFPFlowMod(dp,
                               table_id=tables.CHECK_IN_PORT,
