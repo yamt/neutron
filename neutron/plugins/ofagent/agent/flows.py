@@ -100,20 +100,15 @@ OpenFlow1.3 flow table for OFAgent
    default goto(next table)
 
 * LOCAL_OUT
-** todo: probably make get_device_details to return vm mac address?
-
    for each known destinations:
       // local_out_add_port, local_out_delete_port
       metadata=xxx,eth_dst=uuu output:i
    default goto(next table)
 
 * PHYS_OUT
-** todo: learning and/or l2 pop
 
-   for each known destinations:  (is this even possible for VLAN???)
-       TYPE_VLAN
-       metadata=xxx,eth_dst=uuu  push_vlan,set_field:present|yyy->vlan_vid,
-                                 output:a
+   TODO(yamamoto): currently this table is always empty.
+
    default goto(next table)
 
 * TUNNEL_FLOOD+N. (per tunnel types)
@@ -144,7 +139,6 @@ OpenFlow1.3 flow table for OFAgent
    default goto(next table)
 
 * LOCAL_FLOOD
-** todo: learning and/or l2 pop
 
    for each networks:
       // local_flood_update, local_flood_delete
