@@ -229,9 +229,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def provision_tenant_tunnel(self, network_type, network, segmentation_id):
         (dp, _ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(tunnel_id=segmentation_id)
+        metadata = meta.mk_metadata(network)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=network,
-                                             metadata_mask=NETWORK_MASK),
+            ofpp.OFPInstructionWriteMetadata(metadata=metadata[0],
+                                             metadata_mask=metadata[1]),
             ofpp.OFPInstructionGotoTable(table_id=tables.TUNNEL_OUT),
         ]
         msg = ofpp.OFPFlowMod(dp,
@@ -252,9 +253,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         (dp, ofp, ofpp) = self._get_dp()
 
         # inbound
+        metadata = meta.mk_metadata(network)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=network,
-                                             metadata_mask=NETWORK_MASK)
+            ofpp.OFPInstructionWriteMetadata(metadata=metadata[0],
+                                             metadata_mask=metadata[1])
         ]
         if network_type == p_const.TYPE_VLAN:
             vlan_vid = segmentation_id | ofp.OFPVID_PRESENT
@@ -325,9 +327,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def check_in_port_add_local_port(self, network, port):
         (dp, ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(in_port=port)
+        metadata = meta.mk_metadata(network, LOCAL)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=LOCAL|network,
-                                             metadata_mask=LOCAL|NETWORK_MASK),
+            ofpp.OFPInstructionWriteMetadata(metadata=metadata[0],
+                                             metadata_mask=metadata[1]),
             ofpp.OFPInstructionGotoTable(table_id=tables.LOCAL_IN),
         ]
         msg = ofpp.OFPFlowMod(dp,
