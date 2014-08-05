@@ -327,7 +327,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def check_in_port_add_local_port(self, network, port):
         (dp, ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(in_port=port)
-        metadata = meta.mk_metadata(network, LOCAL)
+        metadata = meta.mk_metadata(network, meta.LOCAL)
         instructions = [
             ofpp.OFPInstructionWriteMetadata(metadata=metadata[0],
                                              metadata_mask=metadata[1]),
