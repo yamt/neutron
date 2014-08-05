@@ -364,7 +364,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
                 lvm.tun_ofports, goto_next=True)
         else:
             self.ryuapp.add_arp_table_entry(
-                lvm.vlan, port_info[1], port_info[0])
+                lvm.vlan, port_info[2], port_info[0])
             br.install_tunnel_output(
                 tables.TUNNEL_OUT,
                 lvm.vlan, lvm.segmentation_id,
@@ -383,7 +383,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
                     tables.TUNNEL_FLOOD[lvm.network_type],
                     lvm.vlan)
         else:
-            self.ryuapp.del_arp_table_entry(lvm.vlan, port_info[1])
+            self.ryuapp.del_arp_table_entry(lvm.vlan, port_info[2])
             br.delete_tunnel_output(tables.TUNNEL_OUT,
                                     lvm.vlan, eth_dst=port_info[0])
 
