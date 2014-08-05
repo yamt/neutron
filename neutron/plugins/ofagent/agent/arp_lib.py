@@ -22,6 +22,7 @@ from ryu.lib.packet import packet
 from ryu.lib.packet import vlan
 
 from neutron.openstack.common import log as logging
+from neutron.plugins.ofagent.agent import metadata as meta
 
 
 LOG = logging.getLogger(__name__)
@@ -140,15 +141,16 @@ class ArpLib(object):
             return
         ofp = datapath.ofproto
         port = msg.match['in_port']
-        network = msg.match.get('metadata')
+        metadata = msg.match.get('metadata')
         pkt = packet.Packet(msg.data)
         LOG.info(_("packet-in dpid %(dpid)s in_port %(port)s pkt %(pkt)s"),
                  {'dpid': dpid_lib.dpid_to_str(datapath.id),
                  'port': port, 'pkt': pkt})
 
-        if network is None:
+        if metadata is None:
             LOG.info(_("drop non tenant packet"))
             return
+        network = metadata & meta.NETWORK_MASK
         pkt_ethernet = pkt.get_protocol(ethernet.ethernet)
         if not pkt_ethernet:
             LOG.info(_("drop non-ethernet packet"))

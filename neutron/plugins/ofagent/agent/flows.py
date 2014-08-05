@@ -153,17 +153,9 @@ from ryu.lib.packet import arp
 from ryu.ofproto import ether
 
 from neutron.plugins.common import constants as p_const
+from neutron.plugins.ofagent.agent import metadata as meta
 from neutron.plugins.ofagent.agent import ofswitch
 from neutron.plugins.ofagent.agent import tables
-
-
-# metadata mask
-NETWORK_MASK = 0xfff
-LOCAL = 0x10000  # the packet came from local vm ports
-
-
-def _mk_metadata(network, flags=0):
-    return (flags | network, flags | NETWORK_MASK)
 
 
 class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
@@ -209,7 +201,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               network, segmentation_id,
                               ports, goto_next, **additional_matches):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network, LOCAL),
+        match = ofpp.OFPMatch(metadata=meta.mk_metadata(network, meta.LOCAL),
                               **additional_matches)
         actions = [ofpp.OFPActionSetField(tunnel_id=segmentation_id)]
         actions += [ofpp.OFPActionOutput(port=p) for p in ports]
@@ -231,7 +223,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                              network, **additional_matches):
         (dp, _ofp, ofpp) = self._get_dp()
         self.delete_flows(table_id=table_id,
-                          metadata=_mk_metadata(network, LOCAL),
+                          metadata=meta.mk_metadata(network, meta.LOCAL),
                           **additional_matches)
 
     def provision_tenant_tunnel(self, network_type, network, segmentation_id):
@@ -281,7 +273,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         self._send_msg(msg)
 
         # outbound
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network, LOCAL))
+        match = ofpp.OFPMatch(metadata=meta.mk_metadata(network, meta.LOCAL))
         if network_type == p_const.TYPE_VLAN:
             actions = [
                 ofpp.OFPActionPushVlan(),
@@ -314,7 +306,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
             self.delete_flows(table_id=tables.CHECK_IN_PORT,
                               in_port=phys_port)
         self.delete_flows(table_id=tables.PHYS_FLOOD,
-                          metadata=_mk_metadata(network))
+                          metadata=meta.mk_metadata(network))
 
     def check_in_port_add_tunnel_port(self, network_type, port):
         (dp, _ofp, ofpp) = self._get_dp()
@@ -350,8 +342,8 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
 
     def local_flood_update(self, network, ports, flood_unicast):
         (dp, ofp, ofpp) = self._get_dp()
-        match_all = ofpp.OFPMatch(metadata=_mk_metadata(network))
-        match_multicast = ofpp.OFPMatch(metadata=_mk_metadata(network),
+        match_all = ofpp.OFPMatch(metadata=meta.mk_metadata(network))
+        match_multicast = ofpp.OFPMatch(metadata=meta.mk_metadata(network),
                                         eth_dst=('01:00:00:00:00:00',
                                                  '01:00:00:00:00:00'))
         if flood_unicast:
@@ -375,11 +367,11 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
 
     def local_flood_delete(self, network):
         self.delete_flows(table_id=tables.LOCAL_FLOOD,
-                          metadata=_mk_metadata(network))
+                          metadata=meta.mk_metadata(network))
 
     def local_out_add_port(self, network, port, mac):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network), eth_dst=mac)
+        match = ofpp.OFPMatch(metadata=meta.mk_metadata(network), eth_dst=mac)
         actions = [ofpp.OFPActionOutput(port=port)]
         instructions = [
             ofpp.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions),
@@ -393,11 +385,11 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
 
     def local_out_delete_port(self, network, mac):
         self.delete_flows(table_id=tables.LOCAL_OUT,
-                          metadata=_mk_metadata(network), eth_dst=mac)
+                          metadata=meta.mk_metadata(network), eth_dst=mac)
 
     def arp_passthrough(self, network, tpa):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network),
+        match = ofpp.OFPMatch(metadata=meta.mk_metadata(network),
                               eth_type=ether.ETH_TYPE_ARP,
                               arp_op=arp.ARP_REQUEST,
                               arp_tpa=tpa)
