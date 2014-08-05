@@ -241,7 +241,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         (dp, _ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(tunnel_id=segmentation_id)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=_mk_metadata(network),
+            ofpp.OFPInstructionWriteMetadata(metadata=network,
                                              metadata_mask=NETWORK_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.PHYS_OUT),
         ]
@@ -263,7 +263,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         (dp, ofp, ofpp) = self._get_dp()
 
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=_mk_metadata(network),
+            ofpp.OFPInstructionWriteMetadata(metadata=network,
                                              metadata_mask=NETWORK_MASK)
         ]
         if network_type == p_const.TYPE_VLAN:
