@@ -163,7 +163,11 @@ from neutron.plugins.ofagent.agent import tables
 
 
 # metadata mask
-TENANT_MASK = 0xfff
+NETWORK_MASK = 0xfff
+
+
+def _mk_matadata(network):
+    return (network, NETWORK_MASK)
 
 
 class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
@@ -206,10 +210,11 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         self.install_default_goto_next(table_id)
 
     def install_tunnel_output(self, table_id,
-                              metadata, segmentation_id,
+                              network, segmentation_id,
                               ports, goto_next, **additional_matches):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=metadata, **additional_matches)
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network),
+                              **additional_matches)
         actions = [ofpp.OFPActionSetField(tunnel_id=segmentation_id)]
         actions += [ofpp.OFPActionOutput(port=p) for p in ports]
         instructions = [
@@ -229,15 +234,15 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def delete_tunnel_output(self, table_id,
                              metadata, **additional_matches):
         (dp, _ofp, ofpp) = self._get_dp()
-        self.delete_flows(table_id=table_id, metadata=metadata,
+        self.delete_flows(table_id=table_id, metadata=_mk_metadata(metadata),
                           **additional_matches)
 
-    def provision_tenant_tunnel(self, network_type, tenant, segmentation_id):
+    def provision_tenant_tunnel(self, network_type, network, segmentation_id):
         (dp, _ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(tunnel_id=segmentation_id)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                                             metadata_mask=TENANT_MASK),
+            ofpp.OFPInstructionWriteMetadata(metadata=_mk_metadata(network),
+                                             metadata_mask=NETWORK_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.PHYS_OUT),
         ]
         msg = ofpp.OFPFlowMod(dp,
@@ -247,18 +252,20 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-    def reclaim_tenant_tunnel(self, network_type, tenant, segmentation_id):
+    def reclaim_tenant_tunnel(self, network_type, network, segmentation_id):
         table_id = tables.TUNNEL_IN[network_type]
         self.delete_flows(table_id=table_id, tunnel_id=segmentation_id)
 
-    def provision_tenant_physnet(self, network_type, tenant,
+    def provision_tenant_physnet(self, network_type, network,
                                  segmentation_id, phys_port):
         """for vlan and flat."""
         assert(network_type in [p_const.TYPE_VLAN, p_const.TYPE_FLAT])
         (dp, ofp, ofpp) = self._get_dp()
 
-        instructions = [ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                        metadata_mask=TENANT_MASK)]
+        instructions = [
+            ofpp.OFPInstructionWriteMetadata(metadata=_mk_metadata(network),
+                                             metadata_mask=NETWORK_MASK)
+        ]
         if network_type == p_const.TYPE_VLAN:
             vlan_vid = segmentation_id | ofp.OFPVID_PRESENT
             match = ofpp.OFPMatch(in_port=phys_port, vlan_vid=vlan_vid)
@@ -275,7 +282,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-        match = ofpp.OFPMatch(metadata=tenant)
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network))
         if network_type == p_const.TYPE_VLAN:
             actions = [
                 ofpp.OFPActionPushVlan(),
@@ -297,7 +304,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-    def reclaim_tenant_physnet(self, network_type, tenant,
+    def reclaim_tenant_physnet(self, network_type, network,
                                segmentation_id, phys_port):
         (_dp, ofp, _ofpp) = self._get_dp()
         vlan_vid = segmentation_id | ofp.OFPVID_PRESENT
@@ -307,7 +314,8 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         else:
             self.delete_flows(table_id=tables.CHECK_IN_PORT,
                               in_port=phys_port)
-        self.delete_flows(table_id=tables.PHYS_FLOOD, metadata=tenant)
+        self.delete_flows(table_id=tables.PHYS_FLOOD,
+                          metadata=_mk_metadata(network))
 
     def check_in_port_add_tunnel_port(self, network_type, port):
         (dp, _ofp, ofpp) = self._get_dp()
@@ -323,12 +331,12 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-    def check_in_port_add_local_port(self, tenant, port):
+    def check_in_port_add_local_port(self, network, port):
         (dp, ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(in_port=port)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                                             metadata_mask=TENANT_MASK),
+            ofpp.OFPInstructionWriteMetadata(metadata=network,
+                                             metadata_mask=NETWORK_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.LOCAL_IN),
         ]
         msg = ofpp.OFPFlowMod(dp,
@@ -341,10 +349,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     def check_in_port_delete_port(self, port):
         self.delete_flows(table_id=tables.CHECK_IN_PORT, in_port=port)
 
-    def local_flood_update(self, tenant, ports, flood_unicast):
+    def local_flood_update(self, network, ports, flood_unicast):
         (dp, ofp, ofpp) = self._get_dp()
-        match_all = ofpp.OFPMatch(metadata=tenant)
-        match_multicast = ofpp.OFPMatch(metadata=tenant,
+        match_all = ofpp.OFPMatch(metadata=_mk_metadata(network))
+        match_multicast = ofpp.OFPMatch(metadata=_mk_metadata(network),
                                         eth_dst=('01:00:00:00:00:00',
                                                  '01:00:00:00:00:00'))
         if flood_unicast:
@@ -366,12 +374,13 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         self.delete_flows(table_id=tables.LOCAL_FLOOD, strict=True,
                           priority=1, match=match_del)
 
-    def local_flood_delete(self, tenant):
-        self.delete_flows(table_id=tables.LOCAL_FLOOD, metadata=tenant)
+    def local_flood_delete(self, network):
+        self.delete_flows(table_id=tables.LOCAL_FLOOD,
+                          metadata=_mk_metadata(network))
 
-    def local_out_add_port(self, tenant, port, mac):
+    def local_out_add_port(self, network, port, mac):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=tenant, eth_dst=mac)
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network), eth_dst=mac)
         actions = [ofpp.OFPActionOutput(port=port)]
         instructions = [
             ofpp.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS, actions),
@@ -383,13 +392,13 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-    def local_out_delete_port(self, tenant, mac):
+    def local_out_delete_port(self, network, mac):
         self.delete_flows(table_id=tables.LOCAL_OUT,
-                          metadata=tenant, eth_dst=mac)
+                          metadata=_mk_metadata(network), eth_dst=mac)
 
-    def arp_passthrough(self, tenant, tpa):
+    def arp_passthrough(self, network, tpa):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=tenant,
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network),
                               eth_type=ether.ETH_TYPE_ARP,
                               arp_op=arp.ARP_REQUEST,
                               arp_tpa=tpa)
