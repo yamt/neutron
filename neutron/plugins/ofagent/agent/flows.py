@@ -20,9 +20,6 @@ OpenFlow1.3 flow table for OFAgent
 * requirements
 ** plain OpenFlow 1.3. no vendor extensions.
 
-* todo: VXLAN (same as GRE?)
-* todo: what to do for mpnet?
-
 * legends
  xxx: network id  (agent internal use)
  yyy: segment id  (vlan id, gre key, ...)
