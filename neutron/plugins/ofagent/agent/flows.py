@@ -166,7 +166,7 @@ from neutron.plugins.ofagent.agent import tables
 NETWORK_MASK = 0xfff
 
 
-def _mk_matadata(network):
+def _mk_metadata(network):
     return (network, NETWORK_MASK)
 
 
