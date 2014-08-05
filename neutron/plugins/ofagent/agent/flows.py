@@ -162,6 +162,10 @@ from neutron.plugins.ofagent.agent import ofswitch
 from neutron.plugins.ofagent.agent import tables
 
 
+# metadata mask
+TENANT_MASK = 0xfff
+
+
 class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
     """ofagent br-int specific logic."""
 
@@ -233,7 +237,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         match = ofpp.OFPMatch(tunnel_id=segmentation_id)
         instructions = [
             ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                                             metadata_mask=0xffffffff),
+                                             metadata_mask=TENANT_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.PHYS_OUT),
         ]
         msg = ofpp.OFPFlowMod(dp,
@@ -254,7 +258,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         (dp, ofp, ofpp) = self._get_dp()
 
         instructions = [ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                        metadata_mask=0xffffffff)]
+                        metadata_mask=TENANT_MASK)]
         if network_type == p_const.TYPE_VLAN:
             vlan_vid = segmentation_id | ofp.OFPVID_PRESENT
             match = ofpp.OFPMatch(in_port=phys_port, vlan_vid=vlan_vid)
@@ -324,7 +328,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         match = ofpp.OFPMatch(in_port=port)
         instructions = [
             ofpp.OFPInstructionWriteMetadata(metadata=tenant,
-                                             metadata_mask=0xffffffff),
+                                             metadata_mask=TENANT_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.LOCAL_IN),
         ]
         msg = ofpp.OFPFlowMod(dp,
