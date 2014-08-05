@@ -226,8 +226,8 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         self.ryuapp = ryuapp
         self.veth_mtu = veth_mtu
         self.root_helper = root_helper
-        self.available_local_vlans = set(xrange(n_const.MIN_VLAN_TAG,
-                                                n_const.MAX_VLAN_TAG))
+        # TODO(yamamoto): Remove this VLAN leftover
+        self.available_local_vlans = set(xrange(1, 4095))
         self.tunnel_types = tunnel_types or []
         l2pop_network_types = list(set(self.tunnel_types +
                                        [p_const.TYPE_VLAN]))
