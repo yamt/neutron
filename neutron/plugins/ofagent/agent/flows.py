@@ -51,7 +51,7 @@ OpenFlow1.3 flow table for OFAgent
 
    for each vm ports:
       // check_in_port_add_local_port, check_in_port_delete_port
-      in_port=i, write_metadata(xxx),goto(LOCAL_IN)
+      in_port=i, write_metadata(LOCAL|xxx),goto(LOCAL_IN)
    TYPE_GRE
    for each tunnel ports:
       // check_in_port_add_tunnel_port, check_in_port_delete_port
@@ -69,9 +69,7 @@ OpenFlow1.3 flow table for OFAgent
 
    for each networks:
       // provision_tenant_tunnel, reclaim_tenant_tunnel
-      // don't goto(TUNNEL_OUT) as it can create a loop with meshed tunnels
-      // what to do when using multiple tunnel types?
-      tun_id=yyy, write_metadata(xxx),goto(PHYS_OUT)
+      tun_id=yyy, write_metadata(xxx),goto(TUNNEL_OUT)
 
    default drop
 
@@ -95,7 +93,7 @@ OpenFlow1.3 flow table for OFAgent
    TYPE_GRE
    // !FLOODING_ENTRY
    // install_tunnel_output, delete_tunnel_output
-   metadata=xxx,eth_dst=uuu  set_tunnel(yyy),output:a
+   metadata=LOCAL|xxx,eth_dst=uuu  set_tunnel(yyy),output:a
 
    default goto(next table)
 
@@ -120,7 +118,7 @@ OpenFlow1.3 flow table for OFAgent
    for each networks:
       // FLOODING_ENTRY
       // install_tunnel_output, delete_tunnel_output
-      metadata=xxx, set_tunnel(yyy),output:a,b,c,goto(next table)
+      metadata=LOCAL|xxx, set_tunnel(yyy),output:a,b,c,goto(next table)
 
    default goto(next table)
 
@@ -129,12 +127,12 @@ OpenFlow1.3 flow table for OFAgent
    TYPE_VLAN
    for each networks:
       // provision_tenant_physnet, reclaim_tenant_physnet
-      metadata=xxx, push_vlan:0x8100,set_field:present|yyy->vlan_vid,
+      metadata=LOCAL|xxx, push_vlan:0x8100,set_field:present|yyy->vlan_vid,
                     output:x,pop_vlan,goto(next table)
    TYPE_FLAT
    for each networks:
       // provision_tenant_physnet, reclaim_tenant_physnet
-      metadata=xxx, output:x,goto(next table)
+      metadata=LOCAL|xxx, output:x,goto(next table)
 
    default goto(next table)
 
@@ -164,10 +162,11 @@ from neutron.plugins.ofagent.agent import tables
 
 # metadata mask
 NETWORK_MASK = 0xfff
+LOCAL = 0x10000  # the packet came from local vm ports
 
 
-def _mk_metadata(network):
-    return (network, NETWORK_MASK)
+def _mk_metadata(network, flags=0):
+    return (flags | network, flags | NETWORK_MASK)
 
 
 class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
@@ -213,7 +212,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               network, segmentation_id,
                               ports, goto_next, **additional_matches):
         (dp, ofp, ofpp) = self._get_dp()
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network),
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network, LOCAL),
                               **additional_matches)
         actions = [ofpp.OFPActionSetField(tunnel_id=segmentation_id)]
         actions += [ofpp.OFPActionOutput(port=p) for p in ports]
@@ -232,9 +231,10 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         self._send_msg(msg)
 
     def delete_tunnel_output(self, table_id,
-                             metadata, **additional_matches):
+                             network, **additional_matches):
         (dp, _ofp, ofpp) = self._get_dp()
-        self.delete_flows(table_id=table_id, metadata=_mk_metadata(metadata),
+        self.delete_flows(table_id=table_id,
+                          metadata=_mk_metadata(network, LOCAL),
                           **additional_matches)
 
     def provision_tenant_tunnel(self, network_type, network, segmentation_id):
@@ -243,7 +243,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         instructions = [
             ofpp.OFPInstructionWriteMetadata(metadata=network,
                                              metadata_mask=NETWORK_MASK),
-            ofpp.OFPInstructionGotoTable(table_id=tables.PHYS_OUT),
+            ofpp.OFPInstructionGotoTable(table_id=tables.TUNNEL_OUT),
         ]
         msg = ofpp.OFPFlowMod(dp,
                               table_id=tables.TUNNEL_IN[network_type],
@@ -262,6 +262,7 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         assert(network_type in [p_const.TYPE_VLAN, p_const.TYPE_FLAT])
         (dp, ofp, ofpp) = self._get_dp()
 
+        # inbound
         instructions = [
             ofpp.OFPInstructionWriteMetadata(metadata=network,
                                              metadata_mask=NETWORK_MASK)
@@ -282,7 +283,8 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
                               instructions=instructions)
         self._send_msg(msg)
 
-        match = ofpp.OFPMatch(metadata=_mk_metadata(network))
+        # outbound
+        match = ofpp.OFPMatch(metadata=_mk_metadata(network, LOCAL))
         if network_type == p_const.TYPE_VLAN:
             actions = [
                 ofpp.OFPActionPushVlan(),
@@ -335,8 +337,8 @@ class OFAgentIntegrationBridge(ofswitch.OpenFlowSwitch):
         (dp, ofp, ofpp) = self._get_dp()
         match = ofpp.OFPMatch(in_port=port)
         instructions = [
-            ofpp.OFPInstructionWriteMetadata(metadata=network,
-                                             metadata_mask=NETWORK_MASK),
+            ofpp.OFPInstructionWriteMetadata(metadata=LOCAL|network,
+                                             metadata_mask=LOCAL|NETWORK_MASK),
             ofpp.OFPInstructionGotoTable(table_id=tables.LOCAL_IN),
         ]
         msg = ofpp.OFPFlowMod(dp,
