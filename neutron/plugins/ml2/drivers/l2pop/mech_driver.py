@@ -17,6 +17,8 @@
 # @author: Francois Eleouet, Orange
 # @author: Mathieu Rohon, Orange
 
+import collections
+
 from oslo.config import cfg
 
 from neutron.common import constants as const
@@ -29,6 +31,10 @@ from neutron.plugins.ml2.drivers.l2pop import db as l2pop_db
 from neutron.plugins.ml2.drivers.l2pop import rpc as l2pop_rpc
 
 LOG = logging.getLogger(__name__)
+
+
+PortInfo = collections.namedtuple(
+    "PortInfo", "mac_address ip_address device_owner")
 
 
 class L2populationMechanismDriver(api.MechanismDriver,
@@ -45,8 +51,10 @@ class L2populationMechanismDriver(api.MechanismDriver,
         self.remove_fdb_entries = {}
 
     def _get_port_fdb_entries(self, port):
-        return [[port['mac_address'], port['device_owner'],
-                 ip['ip_address']] for ip in port['fixed_ips']]
+        return [PortInfo(mac_address=port['mac_address'],
+                         device_owner=port['device_owner'],
+                         ip_address=ip['ip_address'])
+                for ip in port['fixed_ips']]
 
     def delete_port_precommit(self, context):
         port = context.current
@@ -89,19 +97,23 @@ class L2populationMechanismDriver(api.MechanismDriver,
             return
         agent, agent_host, agent_ip, segment, port_fdb_entries = port_infos
 
-        orig_mac_devowner_ip = [[port['mac_address'], port['device_owner'], ip]
-                       for ip in orig_ips]
-        port_mac_devowner_ip = [[port['mac_address'], port['device_owner'], ip]
-                       for ip in port_ips]
+        orig_info = [PortInfo(mac_address=port['mac_address'],
+                              device_owner=port['device_owner'],
+                              ip_address=ip)
+                     for ip in orig_ips]
+        port_info = [PortInfo(mac_address=port['mac_address'],
+                              device_owner=port['device_owner'],
+                              ip_address=ip)
+                     for ip in port_ips]
 
         upd_fdb_entries = {port['network_id']: {agent_ip: {}}}
 
         ports = upd_fdb_entries[port['network_id']][agent_ip]
-        if orig_mac_devowner_ip:
-            ports['before'] = orig_mac_devowner_ip
+        if orig_info:
+            ports['before'] = orig_info
 
-        if port_mac_devowner_ip:
-            ports['after'] = port_mac_devowner_ip
+        if port_info:
+            ports['after'] = port_info
 
         self.L2populationAgentNotify.update_fdb_entries(
             self.rpc_ctx, {'chg_ip': upd_fdb_entries})

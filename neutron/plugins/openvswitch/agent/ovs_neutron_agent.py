@@ -374,7 +374,7 @@ class OVSNeutronAgent(n_rpc.RpcCallback,
         else:
             self.setup_entry_for_arp_reply(br, 'add', lvm.vlan, port_info[0],
                                            port_info[1])
-            if not self.dvr_agent.is_dvr_router_interface(port_info[1]):
+            if not self.dvr_agent.is_dvr_router_interface(port_info[2]):
                 br.add_flow(table=constants.UCAST_TO_TUN,
                             priority=2,
                             dl_vlan=lvm.vlan,

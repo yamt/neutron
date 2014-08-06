@@ -39,11 +39,13 @@ class TestL2populationRpcCallBackTunnelMixin(
             results[lvm] = agent_ports
         expected = {
             self.lvm1: {
-                self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip]],
+                self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip,
+                                    "compute:owner0"]],
                 self.local_ip: []},
             None: {},
             self.lvm3: {
-                self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip]],
+                self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip,
+                                    "compute:owner2"]],
                 self.local_ip: []},
         }
         self.assertEqual(expected, results)
@@ -56,11 +58,13 @@ class TestL2populationRpcCallBackTunnelMixin(
             results[lvm] = agent_ports
         expected = {
             self.lvm1: {
-                self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip]],
+                self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip,
+                                    "compute:owner0"]],
                 self.local_ip: []},
             self.lvm2: {},
             self.lvm3: {
-                self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip]],
+                self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip,
+                                    "compute:owner2"]],
                 self.local_ip: []},
         }
         self.assertEqual(expected, results)
