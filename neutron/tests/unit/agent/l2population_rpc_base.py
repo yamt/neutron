@@ -91,21 +91,24 @@ class TestL2populationRpcCallBackTunnelMixinBase(base.BaseTestCase):
                 'segment_id': self.lvms[0].segid,
                 'ports': {
                     self.local_ip: [],
-                    self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip]]},
+                    self.ports[0].ip: [[self.lvms[0].mac, self.lvms[0].ip,
+                                        "compute:owner0"]]},
             },
             self.lvms[1].net: {
                 'network_type': self.type_gre,
                 'segment_id': self.lvms[1].segid,
                 'ports': {
                     self.local_ip: [],
-                    self.ports[1].ip: [[self.lvms[1].mac, self.lvms[1].ip]]},
+                    self.ports[1].ip: [[self.lvms[1].mac, self.lvms[1].ip,
+                                        "compute:owner1"]]},
             },
             self.lvms[2].net: {
                 'network_type': self.type_gre,
                 'segment_id': self.lvms[2].segid,
                 'ports': {
                     self.local_ip: [],
-                    self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip]]},
+                    self.ports[2].ip: [[self.lvms[2].mac, self.lvms[2].ip,
+                                        "compute:owner2"]]},
             },
         }
 
@@ -128,18 +131,24 @@ class TestL2populationRpcCallBackTunnelMixinBase(base.BaseTestCase):
         self.upd_fdb_entry1_val = {
             self.lvms[0].net: {
                 self.ports[0].ip: {
-                    'before': [[self.lvms[0].mac, self.lvms[0].ip]],
-                    'after': [[self.lvms[1].mac, self.lvms[1].ip]],
+                    'before': [[self.lvms[0].mac, self.lvms[0].ip,
+                                "compute:owner0"]],
+                    'after': [[self.lvms[1].mac, self.lvms[1].ip,
+                               "compute:owner0"]],
                 },
                 self.ports[1].ip: {
-                    'before': [[self.lvms[0].mac, self.lvms[0].ip]],
-                    'after': [[self.lvms[1].mac, self.lvms[1].ip]],
+                    'before': [[self.lvms[0].mac, self.lvms[0].ip,
+                                "compute:owner1"]],
+                    'after': [[self.lvms[1].mac, self.lvms[1].ip,
+                               "compute:owner1"]],
                 },
             },
             self.lvms[1].net: {
                 self.ports[2].ip: {
-                    'before': [[self.lvms[0].mac, self.lvms[0].ip]],
-                    'after': [[self.lvms[2].mac, self.lvms[2].ip]],
+                    'before': [[self.lvms[0].mac, self.lvms[0].ip,
+                                "compute:owner2"]],
+                    'after': [[self.lvms[2].mac, self.lvms[2].ip,
+                               "compute:owner2"]],
                 },
             },
         }

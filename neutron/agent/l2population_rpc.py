@@ -88,6 +88,9 @@ class L2populationRpcCallBackTunnelMixin(L2populationRpcCallBackMixin):
         :param port_info: list to include mac and ip.
 
             [mac, ip]
+            [mac, ip, device_owner]
+            or
+            FLOODING_ENTRY
         :remote_ip: remote ip address.
         :param lvm: a local VLAN map of network.
         :param ofport: a port to add.
@@ -106,7 +109,9 @@ class L2populationRpcCallBackTunnelMixin(L2populationRpcCallBackMixin):
         :param br: represent the bridge on which del_fdb_flow should be
         applied.
         :param port_info: a list to contain mac and ip.
-            [mac, ip]
+            [mac, ip, device_owner]
+            or
+            FLOODING_ENTRY
         :remote_ip: remote ip address.
         :param lvm: local VLAN map of network.
         :param ofport: a port to delete.
@@ -226,8 +231,8 @@ class L2populationRpcCallBackTunnelMixin(L2populationRpcCallBackMixin):
                             agent and network.
                                {'net1':
                                 {'agent_ip':
-                                 {'before': [[mac, ip]],
-                                  'after': [[mac, ip]]
+                                 {'before': [(mac, ip, device_owner)],
+                                  'after': [(mac, ip, device_owner)]
                                  }
                                 }
                                 'net2':
@@ -247,11 +252,11 @@ class L2populationRpcCallBackTunnelMixin(L2populationRpcCallBackMixin):
                     continue
 
                 after = state.get('after')
-                for mac, ip in after:
+                for mac, ip, _ in after:
                     self.setup_entry_for_arp_reply(br, 'add', lvm.vlan, mac,
                                                    ip)
 
                 before = state.get('before')
-                for mac, ip in before:
+                for mac, ip, _ in before:
                     self.setup_entry_for_arp_reply(br, 'remove', lvm.vlan, mac,
                                                    ip)
