@@ -341,19 +341,42 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         LOG.debug("fdb_add received")
         for lvm, agent_ports in self.get_agent_ports(fdb_entries,
                                                      self.local_vlan_map):
-            agent_ports.pop(self.local_ip, None)
-            if len(agent_ports):
-                self.fdb_add_tun(context, self.int_br, lvm, agent_ports,
-                                 self.tun_ofports)
+            if lvm.network_type in self.tunnel_types:
+                agent_ports.pop(self.local_ip, None)
+                if len(agent_ports):
+                    self.fdb_add_tun(context, self.int_br, lvm, agent_ports,
+                                     self.tun_ofports)
+            else:
+                self._fdb_add_arp(lvm, agent_ports)
 
     def fdb_remove(self, context, fdb_entries):
         LOG.debug("fdb_remove received")
         for lvm, agent_ports in self.get_agent_ports(fdb_entries,
                                                      self.local_vlan_map):
-            agent_ports.pop(self.local_ip, None)
-            if len(agent_ports):
-                self.fdb_remove_tun(context, self.int_br, lvm, agent_ports,
-                                    self.tun_ofports)
+            if lvm.network_type in self.tunnel_types:
+                agent_ports.pop(self.local_ip, None)
+                if len(agent_ports):
+                    self.fdb_remove_tun(context, self.int_br, lvm, agent_ports,
+                                        self.tun_ofports)
+            else:
+                self._fdb_remove_arp(lvm, agent_ports)
+
+    @log.log
+    def _fdb_add_arp(self, lvm, agent_ports):
+        for remote_ip, port_infos in agent_ports.items():
+            for port_info in port_infos:
+                if port_info == n_const.FLOODING_ENTRY:
+                    continue
+                self.ryuapp.add_arp_table_entry(
+                    lvm.vlan, port_info[1], port_info[0])
+
+    @log.log
+    def _fdb_remove_arp(self, lvm, agent_ports):
+        for remote_ip, port_infos in agent_ports.items():
+            for port_info in port_infos:
+                if port_info == n_const.FLOODING_ENTRY:
+                    continue
+                self.ryuapp.del_arp_table_entry(lvm.vlan, port_info[1])
 
     def add_fdb_flow(self, br, port_info, remote_ip, lvm, ofport):
         if port_info == n_const.FLOODING_ENTRY:
