@@ -525,6 +525,7 @@ class TestOFANeutronAgent(ofa_test_base.OFAAgentTestBase):
         lvm2.vlan = self.lvms[1].vlan
         lvm2.segmentation_id = self.lvms[1].segid
         lvm2.tun_ofports = set([1, 2])
+        self.agent.tunnel_types = [self.tunnel_type]
         self.agent.local_vlan_map = {self.lvms[0].net: lvm1,
                                      self.lvms[1].net: lvm2}
         self.agent.tun_ofports = {self.tunnel_type:
