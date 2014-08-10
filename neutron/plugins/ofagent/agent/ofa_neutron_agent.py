@@ -342,7 +342,9 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         for lvm, agent_ports in self.get_agent_ports(fdb_entries,
                                                      self.local_vlan_map):
             if lvm.network_type in self.tunnel_types:
-                agent_ports.pop(self.local_ip, None)
+                local = agent_ports.pop(self.local_ip, None)
+                if local:
+                    self._fdb_add_arp(lvm, {self.local_ip: local})
                 if len(agent_ports):
                     self.fdb_add_tun(context, self.int_br, lvm, agent_ports,
                                      self.tun_ofports)
@@ -354,7 +356,9 @@ class OFANeutronAgent(n_rpc.RpcCallback,
         for lvm, agent_ports in self.get_agent_ports(fdb_entries,
                                                      self.local_vlan_map):
             if lvm.network_type in self.tunnel_types:
-                agent_ports.pop(self.local_ip, None)
+                local = agent_ports.pop(self.local_ip, None)
+                if local:
+                    self._fdb_remove_arp(lvm, {self.local_ip: local})
                 if len(agent_ports):
                     self.fdb_remove_tun(context, self.int_br, lvm, agent_ports,
                                         self.tun_ofports)
@@ -363,7 +367,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
     @log.log
     def _fdb_add_arp(self, lvm, agent_ports):
-        for remote_ip, port_infos in agent_ports.items():
+        for _remote_ip, port_infos in agent_ports.items():
             for port_info in port_infos:
                 if port_info == n_const.FLOODING_ENTRY:
                     continue
@@ -372,7 +376,7 @@ class OFANeutronAgent(n_rpc.RpcCallback,
 
     @log.log
     def _fdb_remove_arp(self, lvm, agent_ports):
-        for remote_ip, port_infos in agent_ports.items():
+        for _remote_ip, port_infos in agent_ports.items():
             for port_info in port_infos:
                 if port_info == n_const.FLOODING_ENTRY:
                     continue
