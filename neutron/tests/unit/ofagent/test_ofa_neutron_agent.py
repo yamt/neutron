@@ -686,6 +686,9 @@ class TestOFANeutronAgent(ofa_test_base.OFAAgentTestBase):
     def test_add_arp_table_entry_vlan(self):
         self._test_add_arp_table_entry_non_tunnel('vlan')
 
+    def test_add_arp_table_entry_flat(self):
+        self._test_add_arp_table_entry_non_tunnel('flat')
+
     def test_del_arp_table_entry(self):
         self._prepare_l2_pop_ofports()
         fdb_entry = {self.lvms[0].net:
@@ -732,6 +735,9 @@ class TestOFANeutronAgent(ofa_test_base.OFAAgentTestBase):
 
     def test_del_arp_table_entry_vlan(self):
         self._test_del_arp_table_entry_non_tunnel('vlan')
+
+    def test_del_arp_table_entry_flat(self):
+        self._test_del_arp_table_entry_non_tunnel('flat')
 
     def test_recl_lv_port_to_preserve(self):
         self._prepare_l2_pop_ofports()
