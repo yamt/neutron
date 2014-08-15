@@ -16,6 +16,7 @@
 import collections
 import contextlib
 
+import copy
 import mock
 
 from neutron.openstack.common import importutils
@@ -201,6 +202,22 @@ class TestArpLib(OFAAgentTestCase):
             self.nets[0].net: {self.nets[0].ip: self.nets[0].mac}}
         self.arplib.del_arp_table_entry(self.nets[0].net, self.nets[0].ip)
         self.assertEqual(self.arplib._arp_tbl, {})
+
+    def test_del_arp_table_entry_unknown_network(self):
+        self.arplib._arp_tbl = {
+            "foo": {"bar": "baz"},
+        }
+        orig = copy.deepcopy(self.arplib._arp_tbl)
+        self.arplib.del_arp_table_entry("hoge", "fuga")
+        self.assertEqual(orig, self.arplib._arp_tbl)
+
+    def test_del_arp_table_entry_unknown_ip(self):
+        self.arplib._arp_tbl = {
+            "foo": {"bar": "baz"},
+        }
+        orig = copy.deepcopy(self.arplib._arp_tbl)
+        self.arplib.del_arp_table_entry("foo", "fuga")
+        self.assertEqual(orig, self.arplib._arp_tbl)
 
     def test_del_arp_table_entry_multiple_net(self):
         self.arplib._arp_tbl = {
