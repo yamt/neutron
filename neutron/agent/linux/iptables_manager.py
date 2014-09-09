@@ -19,9 +19,9 @@
 
 """Implements iptables rules using linux utilities."""
 
-import inspect
 import os
 import re
+import sys
 
 from neutron.agent.linux import utils as linux_utils
 from neutron.common import utils
@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 #             (max_chain_name_length - len('-POSTROUTING') == 16)
 def get_binary_name():
     """Grab the name of the binary we're running in."""
-    return os.path.basename(inspect.stack()[-1][1])[:16]
+    return os.path.basename(sys.modules["__main__"].__file__)[:16]
 
 binary_name = get_binary_name()
 
