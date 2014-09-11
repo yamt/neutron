@@ -13,8 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os.path
+
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import iptables_manager
+from neutron.agent.linux import utils
 from neutron.openstack.common import uuidutils
 from neutron.tests.functional.agent.linux import base
 from neutron.tests.functional.agent.linux.helpers import ipt_binname
@@ -77,9 +80,18 @@ class IptablesManagerTestCase(IpBase):
         self.iptables.apply()
         self._ping_destination(self.src_ns, self.DST_ADDRESS)
 
+class IptablesManagerTestCaseNonRoot(IpBase):
+    @staticmethod
+    def _normalize_module_name(name):
+        for suf in ['.pyc', '.pyo']:
+            if name.endswith(suf):
+                return name[:-len(suf)] + '.py'
+        return name
+
     def _test_binary_name(self, module):
-        expected = os.path.basename(module.__file__)[:16]
-        observed = utils.execute([module.__file__])
+	modname = self._normalize_module_name(module.__file__)
+        expected = os.path.basename(modname)[:16]
+        observed = utils.execute(["python", module.__file__]).rstrip()
         self.assertEqual(expected, observed)
 
     def test_binary_name(self):
