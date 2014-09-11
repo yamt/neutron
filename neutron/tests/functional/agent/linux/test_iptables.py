@@ -17,9 +17,8 @@ from neutron.agent.linux import ip_lib
 from neutron.agent.linux import iptables_manager
 from neutron.openstack.common import uuidutils
 from neutron.tests.functional.agent.linux import base
-from neutron.tests.functional.agent.linux.helpers import iptables_binary_name
-from neutron.tests.functional.agent.linux.helpers import \
-    iptables_binary_name_eventlet
+from neutron.tests.functional.agent.linux.helpers import ipt_binname
+from neutron.tests.functional.agent.linux.helpers import ipt_binname_eventlet
 
 ICMP_BLOCK_RULE = '-p icmp -j DROP'
 SRC_VETH_NAME = 'source'
@@ -79,11 +78,12 @@ class IptablesManagerTestCase(IpBase):
         self._ping_destination(self.src_ns, self.DST_ADDRESS)
 
     def _test_binary_name(self, module):
-        utils.execute([module.__file__,
-                       os.path.basename(module.__file__)[:16]])
+        expected = os.path.basename(module.__file__)[:16]
+        observed = utils.execute([module.__file__])
+        self.assertEqual(expected, observed)
 
     def test_binary_name(self):
-        self._test_binary_name(iptables_binary_name)
+        self._test_binary_name(ipt_binname)
 
     def test_binary_name_eventlet(self):
-        self._test_binary_name(iptables_binary_name_eventlet)
+        self._test_binary_name(ipt_binname_eventlet)
