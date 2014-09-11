@@ -13,10 +13,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os.path
+
 from neutron.agent.linux import ip_lib
 from neutron.agent.linux import iptables_manager
+from neutron.agent.linux import utils
 from neutron.openstack.common import uuidutils
 from neutron.tests.functional.agent.linux import base
+from neutron.tests.functional.agent.linux.bin import ipt_binname
 
 ICMP_BLOCK_RULE = '-p icmp -j DROP'
 SRC_VETH_NAME = 'source'
@@ -74,3 +78,25 @@ class IptablesManagerTestCase(IpBase):
         self.iptables.ipv4['filter'].remove_rule('INPUT', ICMP_BLOCK_RULE)
         self.iptables.apply()
         self._ping_destination(self.src_ns, self.DST_ADDRESS)
+
+
+class IptablesManagerNonRootTestCase(IpBase):
+    @staticmethod
+    def _normalize_module_name(name):
+        for suf in ['.pyc', '.pyo']:
+            if name.endswith(suf):
+                return name[:-len(suf)] + '.py'
+        return name
+
+    def _test_binary_name(self, module, *extra_options):
+        executable = self._normalize_module_name(module.__file__)
+        expected = os.path.basename(executable)[:16]
+        observed = utils.execute([executable] + extra_options).rstrip()
+        self.assertEqual(expected, observed)
+
+    def test_binary_name(self):
+        self._test_binary_name(ipt_binname)
+
+    def test_binary_name_eventlet_spawn(self):
+        """Test for Bug #1367075."""
+        self._test_binary_name(ipt_binname, 'spawn')
