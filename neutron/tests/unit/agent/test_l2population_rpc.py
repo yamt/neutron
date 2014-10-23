@@ -70,7 +70,8 @@ class TestL2populationRpcCallBackTunnelMixin(
             mock.patch.object(self.fakeagent, 'add_fdb_flow'),
         ) as (mock_setup_tunnel_port, mock_add_fdb_flow):
             self.fakeagent.fdb_add_tun('context', self.fakebr, self.lvm1,
-                                       self.agent_ports, self.ofports)
+                                       self.agent_ports,
+                                       self._tunnel_port_lookup)
         expected = [
             mock.call(self.fakebr, [self.lvms[0].mac, self.lvms[0].ip],
                       self.ports[0].ip, self.lvm1, self.ports[0].ofport),
@@ -91,7 +92,8 @@ class TestL2populationRpcCallBackTunnelMixin(
             mock.patch.object(self.fakeagent, 'add_fdb_flow'),
         ) as (mock_setup_tunnel_port, mock_add_fdb_flow):
             self.fakeagent.fdb_add_tun('context', self.fakebr, self.lvm1,
-                                       self.agent_ports, self.ofports)
+                                       self.agent_ports,
+                                       self._tunnel_port_lookup)
         mock_setup_tunnel_port.assert_called_once_with(
             self.fakebr, self.ports[1].ip, self.lvm1.network_type)
         expected = [
@@ -113,7 +115,8 @@ class TestL2populationRpcCallBackTunnelMixin(
             mock.patch.object(self.fakeagent, 'add_fdb_flow'),
         ) as (mock_setup_tunnel_port, mock_add_fdb_flow):
             self.fakeagent.fdb_add_tun('context', self.fakebr, self.lvm1,
-                                       self.agent_ports, self.ofports)
+                                       self.agent_ports,
+                                       self._tunnel_port_lookup)
         mock_setup_tunnel_port.assert_called_once_with(
             self.fakebr, self.ports[1].ip, self.lvm1.network_type)
         expected = [
@@ -129,7 +132,8 @@ class TestL2populationRpcCallBackTunnelMixin(
         with mock.patch.object(
             self.fakeagent, 'del_fdb_flow') as mock_del_fdb_flow:
             self.fakeagent.fdb_remove_tun('context', self.fakebr, self.lvm1,
-                                          self.agent_ports, self.ofports)
+                                          self.agent_ports,
+                                          self._tunnel_port_lookup)
         expected = [
             mock.call(self.fakebr, [self.lvms[0].mac, self.lvms[0].ip],
                       self.ports[0].ip, self.lvm1, self.ports[0].ofport),
@@ -148,7 +152,8 @@ class TestL2populationRpcCallBackTunnelMixin(
             mock.patch.object(self.fakeagent, 'cleanup_tunnel_port'),
         ) as (mock_del_fdb_flow, mock_cleanup_tunnel_port):
             self.fakeagent.fdb_remove_tun('context', self.fakebr, self.lvm1,
-                                          self.agent_ports, self.ofports)
+                                          self.agent_ports,
+                                          self._tunnel_port_lookup)
         expected = [
             mock.call(self.fakebr, [self.lvms[0].mac, self.lvms[0].ip],
                       self.ports[0].ip, self.lvm1, self.ports[0].ofport),
@@ -168,7 +173,8 @@ class TestL2populationRpcCallBackTunnelMixin(
         with mock.patch.object(
             self.fakeagent, 'del_fdb_flow') as mock_del_fdb_flow:
             self.fakeagent.fdb_remove_tun('context', self.fakebr, self.lvm1,
-                                          self.agent_ports, self.ofports)
+                                          self.agent_ports,
+                                          self._tunnel_port_lookup)
         expected = [
             mock.call(self.fakebr, [self.lvms[0].mac, self.lvms[0].ip],
                       self.ports[0].ip, self.lvm1, self.ports[0].ofport),
