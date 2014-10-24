@@ -5,6 +5,8 @@ This directory includes agent for OpenFlow Agent mechanism driver.
 For how to install/set up ML2 mechanism driver for OpenFlow Agent, please refer to
 https://github.com/osrg/ryu/wiki/OpenStack
 
+This version of ofagent requires ryu>=3.15
+
 # -- Notes for updating from Icehouce
 
 OVS.bridge_mappings is deprecated for ofagent.  It's planned to be
