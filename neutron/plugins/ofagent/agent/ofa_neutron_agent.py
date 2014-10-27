@@ -716,9 +716,12 @@ class OFANeutronAgent(n_rpc.RpcCallback,
             LOG.debug("No VIF port for port %s defined on agent.", port_id)
 
     def _setup_tunnel_port(self, br, port_name, tunnel_type):
+        # NOTE(yamamoto): Theoretically we can specify self.local_ip
+        # instead of "0" here.  However, Open vSwitch v2.0.2 doesn't
+        # support the combination.
         ofport_str = br.add_tunnel_port(port_name,
                                         "flow",
-                                        self.local_ip,
+                                        "0",
                                         tunnel_type,
                                         self.vxlan_udp_port,
                                         self.dont_fragment)
