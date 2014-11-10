@@ -41,7 +41,6 @@ from neutron.db.migration.alembic_migrations import other_extensions_init_ops
 from neutron.db.migration.alembic_migrations import other_plugins_init_ops
 from neutron.db.migration.alembic_migrations import ovs_init_ops
 from neutron.db.migration.alembic_migrations import portsec_init_ops
-from neutron.db.migration.alembic_migrations import ryu_init_ops
 from neutron.db.migration.alembic_migrations import secgroup_init_ops
 from neutron.db.migration.alembic_migrations import vmware_init_ops
 from neutron.db.migration.alembic_migrations import vpn_init_ops
@@ -66,13 +65,11 @@ def upgrade():
     mlnx_init_ops.upgrade()
     nec_init_ops.upgrade()
     other_plugins_init_ops.upgrade()
-    ryu_init_ops.upgrade()
     vmware_init_ops.upgrade()
 
 
 def downgrade():
     vmware_init_ops.downgrade()
-    ryu_init_ops.downgrade()
     other_plugins_init_ops.downgrade()
     nec_init_ops.downgrade()
     mlnx_init_ops.downgrade()
