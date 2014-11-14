@@ -553,6 +553,25 @@ def get_bridge_external_bridge_id(root_helper, bridge):
         return None
 
 
+def get_bridge_name_for_datapath_id(root_helper, datapath_id):
+    """Return the name of bridge for given datapath-id
+
+    :param datapath_id: datapath-id hex string
+    """
+    args = ["ovs-vsctl", "--timeout=%d" % cfg.CONF.ovs_vsctl_timeout,
+            "--format=json", "--", "--columns=name",
+            "find", "Bridge", "datapath_id=%s" % datapath_id]
+    try:
+        result_str = utils.execute(args, root_helper=root_helper)
+    except Exception as e:
+        with excutils.save_and_reraise_exception():
+            LOG.exception(_LE("Unable to execute %(cmd)s. "
+                              "Exception: %(exception)s"),
+                          {'cmd': args, 'exception': e})
+    (name,) = jsonutils.loads(result_str.strip())['data']:
+    return name
+
+
 def _build_flow_expr_str(flow_dict, cmd):
     flow_expr_arr = []
     actions = None
