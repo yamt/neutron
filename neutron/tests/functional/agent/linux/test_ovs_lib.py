@@ -27,4 +27,4 @@ class TestOvsLib(base.BaseOVSLinuxTestCase):
         datapath_id = self.bridge.get_datapath_id()
         name = ovs_lib.get_bridge_name_for_datapath_id(self.root_helper,
                                                        datapath_id)
-        self.assertEqual(br.name, name)
+        self.assertEqual(self.bridge.name, name)
