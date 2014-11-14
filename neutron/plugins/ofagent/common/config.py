@@ -15,9 +15,17 @@
 #    under the License.
 
 from oslo.config import cfg
+from oslo.config import types
 
 from neutron.agent.common import config
 from neutron.plugins.openvswitch.common import config as ovs_config
+
+
+ofagent_opts = [
+    cfg.Opt('integration_bridge_datapath_id',
+            type=types.Integer(min=0, max=0xffffffffffffffff),
+            help=_("Datapath ID of the integration bridge in hex.")),
+]
 
 
 agent_opts = [
@@ -30,6 +38,7 @@ agent_opts = [
 ]
 
 
+cfg.CONF.register_opts(ofagent_opts, 'OFAGENT')
 cfg.CONF.register_opts(ovs_config.ovs_opts, 'OVS')
 cfg.CONF.register_opts(ovs_config.agent_opts, 'AGENT')
 cfg.CONF.register_opts(agent_opts, 'AGENT')
