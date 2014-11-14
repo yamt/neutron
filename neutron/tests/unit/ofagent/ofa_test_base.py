@@ -69,3 +69,4 @@ class OFAAgentTestBase(OFATestBase):
                        help='openflow tcp listen port')
         ])
         cfg.CONF.set_override('root_helper', 'fake_helper', group='AGENT')
+        self.config_parse()
