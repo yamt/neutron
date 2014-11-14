@@ -22,7 +22,7 @@ from neutron.agent.linux import ip_lib
 from neutron.agent.linux import utils
 from neutron.common import exceptions
 from neutron.openstack.common import excutils
-from neutron.openstack.common.gettextutils import _LI, _LW
+from neutron.openstack.common.gettextutils import _LE, _LI, _LW
 from neutron.openstack.common import jsonutils
 from neutron.openstack.common import log as logging
 from neutron.plugins.common import constants
@@ -551,6 +551,29 @@ def get_bridge_external_bridge_id(root_helper, bridge):
     except Exception:
         LOG.exception(_("Bridge %s not found."), bridge)
         return None
+
+
+def get_bridge_name_for_datapath_id(root_helper, datapath_id):
+    """Return the name of the bridge with the given datapath-id
+
+    :param datapath_id: datapath-id as a hex string
+    :type datapath_id: string
+
+    :returns: the name of the bridge
+    """
+    args = ["ovs-vsctl", "--timeout=%d" % cfg.CONF.ovs_vsctl_timeout,
+            "--format=json", "--", "--columns=name",
+            "find", "Bridge", "datapath_id=%s" % datapath_id]
+    try:
+        result_str = utils.execute(args, root_helper=root_helper)
+    except Exception as e:
+        with excutils.save_and_reraise_exception():
+            LOG.exception(_LE("Unable to execute %(cmd)s. "
+                              "Exception: %(exception)s"),
+                          {'cmd': args, 'exception': e})
+    (row,) = jsonutils.loads(result_str.strip())['data']
+    (name,) = row
+    return name
 
 
 def _build_flow_expr_str(flow_dict, cmd):
