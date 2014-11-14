@@ -568,7 +568,8 @@ def get_bridge_name_for_datapath_id(root_helper, datapath_id):
             LOG.exception(_LE("Unable to execute %(cmd)s. "
                               "Exception: %(exception)s"),
                           {'cmd': args, 'exception': e})
-    (name,) = jsonutils.loads(result_str.strip())['data']
+    (row,) = jsonutils.loads(result_str.strip())['data']
+    (name,) = row
     return name
 
 
