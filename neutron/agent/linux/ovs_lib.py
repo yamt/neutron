@@ -553,6 +553,10 @@ def get_bridge_external_bridge_id(root_helper, bridge):
         return None
 
 
+class DatapathIdNotFound(exceptions.NotFound):
+    message = _("Datapath with ID %(datapath_id)016x not found")
+
+
 def get_bridge_name_for_datapath_id(root_helper, datapath_id):
     """Return the name of the bridge with the given datapath-id
 
@@ -560,18 +564,23 @@ def get_bridge_name_for_datapath_id(root_helper, datapath_id):
     :type datapath_id: string
 
     :returns: the name of the bridge
+
+    :raises: ``DatapathIdNotFound``, if a bridge with the given datapath-id
+     is not found.
     """
     args = ["ovs-vsctl", "--timeout=%d" % cfg.CONF.ovs_vsctl_timeout,
             "--format=json", "--", "--columns=name",
             "find", "Bridge", "datapath_id=%s" % datapath_id]
     try:
         result_str = utils.execute(args, root_helper=root_helper)
-    except Exception as e:
+    except RuntimeError as e:
         with excutils.save_and_reraise_exception():
             LOG.exception(_LE("Unable to execute %(cmd)s. "
                               "Exception: %(exception)s"),
                           {'cmd': args, 'exception': e})
     (row,) = jsonutils.loads(result_str.strip())['data']
+    if not row:
+        raise DatapathIdNotFound(datapath_id=datapath_id)
     (name,) = row
     return name
 
