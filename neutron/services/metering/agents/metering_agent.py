@@ -45,6 +45,7 @@ LOG = logging.getLogger(__name__)
 class MeteringPluginRpc(object):
 
     def __init__(self, host):
+        super(MeteringPluginRpc, self).__init__()
         target = messaging.Target(topic=topics.METERING_PLUGIN, version='1.0')
         self.client = n_rpc.get_client(target)
 
