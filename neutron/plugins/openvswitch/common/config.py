@@ -44,8 +44,20 @@ ovs_opts = [
     cfg.BoolOpt('use_veth_interconnection', default=False,
                 help=_("Use veths instead of patch ports to interconnect the "
                        "integration bridge to physical bridges.")),
-    cfg.StrOpt('ofp_driver', default='ovs-ofctl', choices=['ovs-ofctl'],
+    cfg.StrOpt('ofp_driver', default='ovs-ofctl', choices=['ovs-ofctl', 'ryu'],
                help=_("OpenFlow driver module to use.")),
+    cfg.IPOpt('ofp_listen_address', default='127.0.0.1',
+              help=_("Address to listen on for OpenFlow connections. "
+                     "Used only for 'ryu' driver.")),
+    cfg.IntOpt('ofp_listen_port', default=6633,
+               help=_("Port to listen on for OpenFlow connections. "
+                      "Used only for 'ryu' driver.")),
+    cfg.IntOpt('ofp_connect_timeout', default=30,
+               help=_("Timeout in seconds to wait for "
+                      "the local switch connecting the controller.")),
+    cfg.IntOpt('ofp_request_timeout', default=10,
+               help=_("Timeout in seconds to wait for a single "
+                      "OpenFlow request.")),
 ]
 
 agent_opts = [

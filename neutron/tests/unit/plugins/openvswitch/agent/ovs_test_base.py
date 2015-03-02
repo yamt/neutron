@@ -19,6 +19,7 @@ import mock
 from oslo_utils import importutils
 
 from neutron.tests import base
+from neutron.tests.unit.plugins.openvswitch.agent import fake_oflib
 
 
 _AGENT_PACKAGE = 'neutron.plugins.openvswitch.agent'
@@ -53,3 +54,16 @@ class OVSOFCtlTestBase(OVSAgentTestBase):
     _BR_INT_CLASS = _DRIVER_PACKAGE + '.br_int.OVSIntegrationBridge'
     _BR_TUN_CLASS = _DRIVER_PACKAGE + '.br_tun.OVSTunnelBridge'
     _BR_PHYS_CLASS = _DRIVER_PACKAGE + '.br_phys.OVSPhysicalBridge'
+
+
+class OVSRyuTestBase(OVSAgentTestBase):
+    _DRIVER_PACKAGE = _AGENT_PACKAGE + '.ryu'
+    _BR_INT_CLASS = _DRIVER_PACKAGE + '.br_int.OVSIntegrationBridge'
+    _BR_TUN_CLASS = _DRIVER_PACKAGE + '.br_tun.OVSTunnelBridge'
+    _BR_PHYS_CLASS = _DRIVER_PACKAGE + '.br_phys.OVSPhysicalBridge'
+
+    def setUp(self):
+        self.fake_oflib_of = fake_oflib.patch_fake_oflib_of()
+        self.fake_oflib_of.start()
+        self.addCleanup(self.fake_oflib_of.stop)
+        super(OVSRyuTestBase, self).setUp()
