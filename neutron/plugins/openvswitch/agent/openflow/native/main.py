@@ -15,32 +15,21 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import sys
-
 from oslo_config import cfg
-from oslo_log import log as logging
-from oslo_utils import importutils
-
-from neutron.common import config as common_config
-from neutron.common import utils as n_utils
+from ryu.base import app_manager
+from ryu import cfg as ryu_cfg
 
 
-LOG = logging.getLogger(__name__)
 cfg.CONF.import_group('OVS', 'neutron.plugins.openvswitch.common.config')
 
 
-_main_modules = {
-    'ovs-ofctl': 'neutron.plugins.openvswitch.agent.openflow.ovs_ofctl.main',
-    'native': 'neutron.plugins.openvswitch.agent.openflow.ryu.main',
-}
+def init_config():
+    ryu_cfg.CONF(project='ryu', args=[])
+    ryu_cfg.CONF.ofp_listen_host = cfg.CONF.OVS.of_listen_address
+    ryu_cfg.CONF.ofp_tcp_listen_port = cfg.CONF.OVS.of_listen_port
 
 
 def main():
-    common_config.init(sys.argv[1:])
-    driver_name = cfg.CONF.OVS.of_interface
-    mod_name = _main_modules[driver_name]
-    mod = importutils.import_module(mod_name)
-    mod.init_config()
-    common_config.setup_logging()
-    n_utils.log_opt_values(LOG)
-    mod.main()
+    app_manager.AppManager.run_apps([
+        'neutron.plugins.openvswitch.agent.openflow.native.ovs_ryuapp',
+    ])

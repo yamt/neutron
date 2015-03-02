@@ -1112,6 +1112,11 @@ class TestOvsNeutronAgentOFCtl(TestOvsNeutronAgent,
     pass
 
 
+class TestOvsNeutronAgentRyu(TestOvsNeutronAgent,
+                             ovs_test_base.OVSRyuTestBase):
+    pass
+
+
 class AncillaryBridgesTest(object):
 
     def setUp(self):
@@ -1171,6 +1176,11 @@ class AncillaryBridgesTest(object):
 
 class AncillaryBridgesTestOFCtl(AncillaryBridgesTest,
                                 ovs_test_base.OVSOFCtlTestBase):
+    pass
+
+
+class AncillaryBridgesTestRyu(AncillaryBridgesTest,
+                              ovs_test_base.OVSRyuTestBase):
     pass
 
 
@@ -2020,4 +2030,9 @@ class TestOvsDvrNeutronAgent(object):
 
 class TestOvsDvrNeutronAgentOFCtl(TestOvsDvrNeutronAgent,
                                   ovs_test_base.OVSOFCtlTestBase):
+    pass
+
+
+class TestOvsDvrNeutronAgentRyu(TestOvsDvrNeutronAgent,
+                                ovs_test_base.OVSRyuTestBase):
     pass

@@ -16,6 +16,7 @@
 import eventlet
 import mock
 
+from oslo_concurrency.fixture import lockutils
 from oslo_config import cfg
 from oslo_utils import importutils
 
@@ -74,6 +75,17 @@ class _OVSAgentTestBase(base.BaseIPVethTestCase,
 
 class _OVSAgentOFCtlTestBase(_OVSAgentTestBase):
     _MAIN_MODULE = 'neutron.plugins.openvswitch.agent.openflow.ovs_ofctl.main'
+
+
+class _OVSAgentNativeTestBase(_OVSAgentTestBase):
+    _MAIN_MODULE = 'neutron.plugins.openvswitch.agent.openflow.native.main'
+
+    def setUp(self):
+        # NOTE(yamamoto): of_interface=native listens on 127.0.0.1:6633
+        # for OpenFlow connection from the local switch.  Serialize
+        # test cases to avoid "address in use" errors.
+        self.useFixture(lockutils.LockFixture(name='openflow_listen'))
+        super(_OVSAgentNativeTestBase, self).setUp()
 
 
 class _ARPSpoofTestCase(object):
@@ -149,6 +161,10 @@ class ARPSpoofOFCtlTestCase(_ARPSpoofTestCase, _OVSAgentOFCtlTestBase):
     pass
 
 
+class ARPSpoofNativeTestCase(_ARPSpoofTestCase, _OVSAgentNativeTestBase):
+    pass
+
+
 class _CanaryTableTestCase(object):
     def test_canary_table(self):
         self.br_int.delete_flows()
@@ -160,4 +176,8 @@ class _CanaryTableTestCase(object):
 
 
 class CanaryTableOFCtlTestCase(_CanaryTableTestCase, _OVSAgentOFCtlTestBase):
+    pass
+
+
+class CanaryTableNativeTestCase(_CanaryTableTestCase, _OVSAgentNativeTestBase):
     pass
