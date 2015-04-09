@@ -67,6 +67,7 @@ class _OVSAgentTestBase(object):
                                       driver_args=self.driver_args)
         self.br_int.set_secure_mode()
         self.br_int.setup_controllers(cfg.CONF)
+        self.br_int.setup_default_table()
         self.init_done = True
         self.init_done_ev.send()
 
@@ -151,6 +152,7 @@ class ARPSpoofOFCtlTestCase(_ARPSpoofTestCase,
 
 class _CanaryTableTestCase(_OVSAgentTestBase):
     def test_canary_table(self):
+        self.br_int.delete_flows()
         self.assertEqual(constants.OVS_RESTARTED,
                          self.br_int.check_canary_table())
         self.br_int.setup_canary_table()
