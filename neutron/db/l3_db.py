@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import functools
 import itertools
 
 import netaddr
@@ -37,6 +38,7 @@ from neutron.common import constants as n_const
 from neutron.common import ipv6_utils
 from neutron.common import rpc as n_rpc
 from neutron.common import utils
+from neutron.db import common_db_mixin
 from neutron.db import l3_agentschedulers_db as l3_agt
 from neutron.db import model_base
 from neutron.db import models_v2
@@ -229,15 +231,16 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
     def create_router(self, context, router):
         r = router['router']
         gw_info = r.pop(EXTERNAL_GW_INFO, None)
-        router_db = self._create_router_db(context, r, r['tenant_id'])
-        try:
+        create = functools.partial(self._create_router_db, context, r,
+                                   r['tenant_id'])
+        delete = functools.partial(self.delete_router, context)
+        def update_gw(router_id):
             if gw_info:
-                self._update_router_gw_info(context, router_db['id'],
+                router_db = self._get_router(context, router_id)
+                self._update_router_gw_info(context, router_id,
                                             gw_info, router=router_db)
-        except Exception:
-            with excutils.save_and_reraise_exception():
-                LOG.debug("Could not update gateway info, deleting router.")
-                self.delete_router(context, router_db.id)
+        common_db_mixin.safe_creation(context, create, delete, update_gw,
+                                      transaction=False)
 
         return self._make_router_dict(router_db)
 
