@@ -335,6 +335,7 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
             LOG.exception(_LE("Failed reporting state!"))
 
     def _restore_local_vlan_map(self):
+        self._local_vlan_hints = {}
         cur_ports = self.int_br.get_vif_ports()
         port_names = [p.port_name for p in cur_ports]
         port_info = self.int_br.get_ports_attributes(
@@ -360,12 +361,14 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                     # string 'None' in OVS
                     segmentation_id = None
                 if segmentation_id is not None:
-                    segmentation_id = int(segmentation_id)
-                self.provision_local_vlan(local_vlan_map['net_uuid'],
-                                          local_vlan_map['network_type'],
-                                          local_vlan_map['physical_network'],
-                                          segmentation_id,
-                                          local_vlan)
+                    self.available_local_vlans.remove(local_vlan)
+                    self._local_vlan_hints[local_vlan_map['net_uuid']] = \
+                        local_vlan
+
+    def _dispose_local_vlan_hints(self):
+        for vlan in self._local_vlan_hints.values():
+            self.available_local_vlans.add(vlan)
+        self._local_vlan_hints = {}
 
     def setup_rpc(self):
         self.agent_id = 'ovs-agent-%s' % self.conf.host
@@ -624,7 +627,7 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                                     segmentation_id=segmentation_id)
 
     def provision_local_vlan(self, net_uuid, network_type, physical_network,
-                             segmentation_id, local_vlan=None):
+                             segmentation_id):
         '''Provisions a local VLAN.
 
         :param net_uuid: the uuid of the network associated with this vlan.
@@ -641,9 +644,8 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
         if lvm:
             lvid = lvm.vlan
         else:
-            if local_vlan in self.available_local_vlans:
-                lvid = local_vlan
-                self.available_local_vlans.remove(local_vlan)
+            if net_uuid in self._local_vlan_hints:
+                lvid = self._local_vlan_hints.pop(net_uuid)
             else:
                 if not self.available_local_vlans:
                     LOG.error(_LE("No local VLAN available for net-id=%s"),
@@ -1790,6 +1792,7 @@ class OVSNeutronAgent(sg_rpc.SecurityGroupAgentRpcCallbackMixin,
                     # so we can sure that no other Exception occurred.
                     if not sync:
                         ovs_restarted = False
+                        self._dispose_local_vlan_hints()
                 except Exception:
                     LOG.exception(_LE("Error while processing VIF ports"))
                     # Put the ports back in self.updated_port
