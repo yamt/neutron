@@ -52,17 +52,23 @@ class FloatingIpTestCasesMixin(object):
         cls.create_pingable_secgroup_rule(secgroup_id=cls.secgroup['id'])
 
         cls._src_server_with_fip = cls._create_server()
-        cls._src_server_without_fip = cls._create_server(
-            create_floating_ip=False)
+        # NOTE(yamamoto): same_server=True implies the use of FIP.
+        # See the comment in FloatingIpSameServer.
+        if not cls.same_server:
+            cls._src_server_without_fip = cls._create_server(
+                create_floating_ip=False)
         cls._proxy_server = cls._src_server_with_fip
         if cls.same_network:
             cls._dest_network = cls.network
         else:
             cls._dest_network = cls._create_dest_network()
-        cls._dest_server_with_fip = cls._create_server(
-            network=cls._dest_network)
-        cls._dest_server_without_fip = cls._create_server(
-            create_floating_ip=False, network=cls._dest_network)
+        if cls.same_server:
+            cls._dest_server_with_fip = cls._src_server_with_fip
+        else:
+            cls._dest_server_with_fip = cls._create_server(
+                network=cls._dest_network)
+            cls._dest_server_without_fip = cls._create_server(
+                create_floating_ip=False, network=cls._dest_network)
 
     @classmethod
     def _create_dest_network(cls):
@@ -140,6 +146,7 @@ class FloatingIpSameNetwork(FloatingIpTestCasesMixin,
     ])
 
     same_network = True
+    same_server = False
 
     @test.idempotent_id('05c4e3b3-7319-4052-90ad-e8916436c23b')
     def test_east_west(self):
@@ -157,7 +164,24 @@ class FloatingIpSeparateNetwork(FloatingIpTestCasesMixin,
     ])
 
     same_network = False
+    same_server = False
 
     @test.idempotent_id('f18f0090-3289-4783-b956-a0f8ac511e8b')
+    def test_east_west(self):
+        self._test_east_west()
+
+
+class FloatingIpSameServer(FloatingIpTestCasesMixin,
+                           base.BaseTempestTestCase):
+    # Note(yamamoto): We don't test "without FIP" case here
+    # because 1. it would be a server local communication which doesn't
+    # involve network at all and 2. it doesn't work with the default
+    # cirros image, which seems to prohibit local connections.
+    src_has_fip = True
+    dest_has_fip = True
+    same_network = True
+    same_server = True
+
+    @test.idempotent_id('46fb7fc1-79a3-42cb-ab4a-1b54e88f4ec1')
     def test_east_west(self):
         self._test_east_west()
