@@ -27,3 +27,9 @@ function configure_ml2 {
         fi
     done
 }
+
+function configure_ml2_extension_drivers {
+    # NOTE(yamamoto): In case of neutron-legacy, it overwrites
+    # what neutron-legacy set, with the latest set of drivers.
+    iniset /$NEUTRON_CORE_PLUGIN_CONF ml2 extension_drivers ${Q_ML2_PLUGIN_EXT_DRIVERS}
+}
