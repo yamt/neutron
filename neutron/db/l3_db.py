@@ -870,6 +870,9 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
             gw_network_id = router.gw_port.network_id
             gw_ips = [x['ip_address'] for x in router.gw_port.fixed_ips]
 
+        router_interface_info = self._make_router_interface_info(
+            router.id, port['tenant_id'], port['id'], port['network_id'],
+            subnets[-1]['id'], [subnet['id'] for subnet in subnets])
         registry.notify(resources.ROUTER_INTERFACE,
                         events.AFTER_CREATE,
                         self,
@@ -882,11 +885,10 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
                         router_id=router_id,
                         port=port,
                         new_interface=new_router_intf,
-                        interface_info=interface_info)
+                        interface_info=interface_info,
+                        router_interface_info=router_interface_info)
 
-        return self._make_router_interface_info(
-            router.id, port['tenant_id'], port['id'], port['network_id'],
-            subnets[-1]['id'], [subnet['id'] for subnet in subnets])
+        return router_interface_info
 
     def _confirm_router_interface_not_in_use(self, context, router_id,
                                              subnet_id):
@@ -1001,6 +1003,9 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
             gw_network_id = router.gw_port.network_id
             gw_ips = [x['ip_address'] for x in router.gw_port.fixed_ips]
 
+        router_interface_info = self._make_router_interface_info(
+            router_id, port['tenant_id'], port['id'], port['network_id'],
+            subnets[0]['id'], [subnet['id'] for subnet in subnets])
         registry.notify(resources.ROUTER_INTERFACE,
                         events.AFTER_DELETE,
                         self,
@@ -1010,12 +1015,9 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
                         gateway_ips=gw_ips,
                         port=port,
                         router_id=router_id,
-                        interface_info=interface_info)
-        return self._make_router_interface_info(router_id, port['tenant_id'],
-                                                port['id'], port['network_id'],
-                                                subnets[0]['id'],
-                                                [subnet['id'] for subnet in
-                                                    subnets])
+                        interface_info=interface_info,
+                        router_interface_info=router_interface_info)
+        return router_interface_info
 
     def _get_floatingip(self, context, id):
         try:
@@ -1300,17 +1302,24 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
 
         self._core_plugin.update_port(context.elevated(), external_port['id'],
                                       {'port': {'device_id': fip_id}})
-        registry.notify(resources.FLOATING_IP,
-                        events.AFTER_UPDATE,
-                        self._update_fip_assoc,
-                        **assoc_result)
-
         if self._is_dns_integration_supported:
             self._process_dns_floatingip_create_postcommit(context,
                                                            floatingip_dict,
                                                            dns_data)
         resource_extend.apply_funcs(l3.FLOATINGIPS, floatingip_dict,
                                     floatingip_db)
+        registry.notify(resources.FLOATING_IP,
+                        events.AFTER_CREATE,
+                        self._update_fip_assoc,
+                        floating_ip=floatingip_dict,
+                        **assoc_result)
+        # NOTE(yamamoto): publish AFTER_UPDATE as well for compatibility.
+        # A consumer who wants the new semantics can ignore this by
+        # checking the lack of "floating_ip" argument.
+        registry.notify(resources.FLOATING_IP,
+                        events.AFTER_UPDATE,
+                        self._update_fip_assoc,
+                        **assoc_result)
         return floatingip_dict
 
     @db_api.retry_if_session_inactive()
@@ -1331,10 +1340,6 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
             if self._is_dns_integration_supported:
                 dns_data = self._process_dns_floatingip_update_precommit(
                     context, floatingip_dict)
-        registry.notify(resources.FLOATING_IP,
-                        events.AFTER_UPDATE,
-                        self._update_fip_assoc,
-                        **assoc_result)
 
         if self._is_dns_integration_supported:
             self._process_dns_floatingip_update_postcommit(context,
@@ -1342,6 +1347,11 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
                                                            dns_data)
         resource_extend.apply_funcs(l3.FLOATINGIPS, floatingip_dict,
                                     floatingip_db)
+        registry.notify(resources.FLOATING_IP,
+                        events.AFTER_UPDATE,
+                        self._update_fip_assoc,
+                        floating_ip=floatingip_dict,
+                        **assoc_result)
         return old_floatingip, floatingip_dict
 
     def _floatingips_to_router_ids(self, floatingips):
@@ -1375,6 +1385,10 @@ class L3_NAT_dbonly_mixin(l3.RouterPluginBase,
         self._core_plugin.delete_port(context.elevated(),
                                       floatingip['floating_port_id'],
                                       l3_port_check=False)
+        registry.notify(resources.FLOATING_IP,
+                        events.AFTER_DELETE,
+                        self._delete_floatingip,
+                        id=id)
         return floatingip_dict
 
     @db_api.retry_if_session_inactive()
